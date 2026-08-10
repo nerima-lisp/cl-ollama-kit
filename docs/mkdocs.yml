@@ -1,0 +1,57 @@
+site_name: cl-ollama-kit
+site_description: A transport-independent Common Lisp client for the Ollama API.
+site_url: https://nerima-lisp.github.io/cl-ollama-kit/
+repo_name: nerima-lisp/cl-ollama-kit
+repo_url: https://github.com/nerima-lisp/cl-ollama-kit
+edit_uri: edit/main/docs/src/
+docs_dir: src
+site_dir: ../site
+use_directory_urls: true
+strict: true
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.highlight
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - toc:
+      permalink: true
+      title: On this page
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Guide:
+      - Native API: guide/native-api.md
+      - OpenAI-compatible API: guide/openai-compatible-api.md
+  - Reference:
+      - API: reference/api.md
+      - Conditions: reference/conditions.md
+      - Architecture: reference/architecture.md
+  - Project:
+      - Development: project/development.md
+
+not_in_nav: notes/
