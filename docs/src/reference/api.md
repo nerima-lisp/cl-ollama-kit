@@ -355,6 +355,11 @@ Return the server version through `/version`.
 
 ## OpenAI-compatible API
 
+The `/v1` surface is a first-class public protocol supported by Ollama, not a
+legacy compatibility alias. Version 2 exposes its canonical OpenAI-compatible
+operations directly and does not retain deprecated names or add a runtime mode
+switch between native and OpenAI-compatible clients.
+
 ### `make-openai-client`
 
 Create a client whose default base URL is `http://localhost:11434/v1`. It

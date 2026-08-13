@@ -29,6 +29,11 @@ The boundary is the `cl-boundary-kit` protocol itself, not an additional
 client-side adapter.  Request and response models remain data-only; transport,
 decoding, and lifecycle functions consume those models directly.
 
+The native Ollama endpoints and the `/v1` OpenAI-compatible endpoints are both
+first-class protocol surfaces in version 2.  The latter is an intentional
+translation of Ollama's public OpenAI-compatible protocol, not a deprecated
+backward-compatibility alias or a runtime mode-switching layer.
+
 Native endpoint declarations are data contracts expanded by
 `define-native-json-endpoint` and `define-native-stream-pair`.  The latter
 requires a literal one-argument body lambda and inlines its `NIL`/`T` branch at

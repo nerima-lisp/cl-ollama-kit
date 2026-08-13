@@ -54,6 +54,11 @@ Run the complete test system with:
 sbcl --script run-tests.lisp
 ```
 
+The script expects the pinned sibling dependencies from the Nix environment;
+when they are unavailable it fails explicitly instead of silently selecting an
+incomplete test system.  The `run-tests` helper also accepts `:timeout-ms` for
+bounded test execution.
+
 The test boundary checks request construction, limits, URL policy, JSON
 contracts, response ownership, native endpoints, OpenAI-compatible endpoints,
 and both stream wire formats.
