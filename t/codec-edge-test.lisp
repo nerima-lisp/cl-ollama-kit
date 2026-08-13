@@ -44,6 +44,7 @@
                         :element-type '(unsigned-byte 8)
                         :initial-contents '(65 66))))
       (assert (= 3 (ollama-kit::%request-body-length "abc")))
+      (assert (= 9 (ollama-kit::%request-body-length "あいう")))
       (assert (= 2 (ollama-kit::%request-body-length octets)))
       (assert (null (ollama-kit::%request-body-length nil)))
       (assert (null (ollama-kit::%request-body-length '(1 2)))))

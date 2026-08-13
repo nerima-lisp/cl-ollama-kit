@@ -11,11 +11,12 @@
 (defun run-tests (&key coverage coverage-output coverage-report-directory
                     coverage-include-pathnames coverage-exclude-pathnames
                     coverage-minimum-expression coverage-minimum-branch
-                    (coverage-reset t))
+                    (coverage-reset t)
+                    (timeout-ms 10000))
   "Run the complete cl-ollama-kit specification suite."
   (unless (run-all :reporter :spec
                    :pass-with-no-tests nil
-                   :timeout-ms 10000
+                   :timeout-ms timeout-ms
                    :coverage coverage
                    :coverage-output coverage-output
                    :coverage-report-directory coverage-report-directory
@@ -25,7 +26,7 @@
                    :coverage-minimum-branch coverage-minimum-branch
                    :coverage-reset coverage-reset)
     (error "cl-ollama-kit test suite failed"))
-  (format t "~&cl-ollama-kit/test: successful completion with 0 failures~%")
+  (format t "~&cl-ollama-kit/test: all selected tests passed.~%")
   t)
 
 (defun response (body &key (status 200) (stream nil))
@@ -55,3 +56,10 @@
          :network-boundary
          (cl-boundary-kit:make-network-boundary :request-fn request-fn)
          options))
+
+(defun request-json-object (request)
+  (json-kit:parse
+   (cl-codec-kit:octets-to-string (http-request-body request)
+                                  :encoding :utf-8)
+   :object-type :hash-table
+   :array-type :vector))

@@ -77,6 +77,11 @@
     (assert (%signals-p 'ollama-argument-error
                         (lambda ()
                           (make-http-request "unsupported" t)))))
+    (assert (%signals-p 'ollama-argument-error
+                        (lambda ()
+                          (ollama-kit::%validate-keyword-options
+                           '(:url "/version" . :body)
+                           '(:url)))))
 
   (it "supports bodyless raw requests and closes malformed JSON responses"
     (let ((client
