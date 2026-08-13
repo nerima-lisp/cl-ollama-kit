@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %unsafe-blob-digest-p (digest)
   (or (some (lambda (character)
               (or (< (char-code character) 33)

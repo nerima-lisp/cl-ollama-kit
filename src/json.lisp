@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %json-supplied-p (value)
   (not (eq value +json-unspecified+)))
 
@@ -19,8 +21,12 @@
     ((listp value) (coerce value 'vector))
     (t value)))
 
+(declaim (inline %json-supplied-p %json-enum %json-array))
+
 (defun %json-object (&rest pairs)
-  (json-kit:alist->json-object (remove nil pairs)
+  ;; PAIRS is the fresh list owned by this &REST binding.  Filter it in place
+  ;; to avoid allocating a second list for omitted optional fields.
+  (json-kit:alist->json-object (delete nil pairs)
                                :duplicate-key-policy :error))
 
 (defun json-object (&rest pairs)
@@ -84,8 +90,11 @@ plain Common Lisp alist is never guessed to be a JSON object by accident."
               :message "Expected a JSON object represented by a hash table or alist."))))
 
 (defun %json-object-with-field (object key value)
-  (let* ((members (%json-object-members object))
-         (without-key (remove key members :key #'car :test #'string=)))
+  (let ((members (%json-object-members object))
+        (kept nil))
+    (dolist (member members)
+      (unless (string= key (car member))
+        (push member kept)))
     (json-kit:alist->json-object
-     (append without-key (list (cons key value)))
+     (nreverse (cons (cons key value) kept))
      :duplicate-key-policy :error)))

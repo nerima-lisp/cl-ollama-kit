@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %close-stream-safely (stream reason)
   "Close STREAM without replacing a primary condition with a cleanup error."
   (handler-case

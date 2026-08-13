@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun make-openai-client (&rest options)
   "Create a client for Ollama's OpenAI-compatible `/v1` API."
   (%validate-keyword-options

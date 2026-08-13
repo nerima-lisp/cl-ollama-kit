@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %url-control-p (character)
   (or (< (char-code character) 33)
       (= (char-code character) 127)))

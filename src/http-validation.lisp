@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %http-token-character-p (character)
   (let ((code (char-code character)))
     (or (<= (char-code #\A) code (char-code #\Z))
@@ -76,9 +78,12 @@
 (defun %force-header (headers name value)
   (let ((normalized-name (%normalize-header-name name)))
     (%ensure-header nil normalized-name value)
-    (cons (cons normalized-name value)
-          (remove normalized-name (%normalize-headers headers)
-                  :key #'car :test #'string-equal))))
+    (let ((kept nil))
+      (dolist (entry headers)
+        (let ((normalized-entry (%normalize-header-entry entry)))
+          (unless (string-equal normalized-name (car normalized-entry))
+            (push normalized-entry kept))))
+      (cons (cons normalized-name value) (nreverse kept)))))
 
 (defun %keyword-option-supplied-p (options keyword)
   (loop for tail on options by #'cddr
@@ -90,17 +95,23 @@
       default))
 
 (defun %validate-keyword-options (options allowed)
-  (unless (evenp (length options))
+  (let ((length (handler-case
+                    (length options)
+                  (type-error () nil))))
+    (unless length
+      (error 'ollama-argument-error
+             :message "Keyword options must be a proper list."))
+    (unless (evenp length)
     (error 'ollama-argument-error
            :message "Keyword options must be supplied as pairs."))
-  (loop for tail on options by #'cddr
-        for keyword = (car tail)
-        do (unless (and (keywordp keyword)
-                        (member keyword allowed :test #'eq))
-             (error 'ollama-argument-error
-                    :message (format nil "Unknown keyword option ~S."
-                                     keyword))))
-  t)
+    (loop for tail on options by #'cddr
+          for keyword = (car tail)
+          do (unless (and (keywordp keyword)
+                          (member keyword allowed :test #'eq))
+               (error 'ollama-argument-error
+                      :message (format nil "Unknown keyword option ~S."
+                                       keyword))))
+    t))
 
 (defun %validate-boolean (value name)
   (unless (or (null value) (eq value t))

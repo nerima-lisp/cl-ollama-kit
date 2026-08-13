@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %close-response (response)
   (%close-response-safely response))
 

@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (define-native-json-endpoint list-models
     (client &key (timeout +timeout-unspecified+) headers)
   :get "/tags"

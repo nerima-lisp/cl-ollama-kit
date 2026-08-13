@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %read-character-line-limited (stream limit)
   (let ((output (make-array (min limit 64)
                             :element-type 'character
@@ -67,9 +69,10 @@
              (%json-field error-data "message")
            (when (and message-p (stringp message)) message)))))))
 
-(defun %decode-stream-event (stream payload line-number)
+(defun %decode-stream-event (stream payload line-number &optional length-validated-p)
   (let* ((event (%parse-json-text payload
-                                  (ollama-stream-max-line-length stream)))
+                                  (ollama-stream-max-line-length stream)
+                                  length-validated-p))
          (error-message (progn
                           (unless (hash-table-p event)
                             (error 'ollama-protocol-error
@@ -84,6 +87,14 @@
              :line line-number))
     event))
 
+(defun %blank-line-p (line)
+  (loop for character across line
+        always (or (char= character #\Space)
+                   (char= character #\Tab)
+                   (char= character #\Return))))
+
+(declaim (inline %blank-line-p))
+
 (defun %stream-next-ndjson (stream)
   (loop
     (multiple-value-bind (line present-p) (%read-wire-line stream)
@@ -92,7 +103,7 @@
         (return (values nil nil)))
       (incf (ollama-stream-line-number stream))
       (let ((line (%strip-line-return line)))
-        (unless (zerop (length (string-trim '(#\Space #\Tab #\Return) line)))
+        (unless (%blank-line-p line)
           (return
             (values (%decode-stream-event
                      stream line (ollama-stream-line-number stream))
@@ -109,21 +120,22 @@
           do (unless first-p (terpri output))
              (write-string line output))))
 
-(defun %sse-data-event (stream data-lines)
+(defun %sse-data-event (stream data-lines data-length)
   (let ((payload (%sse-data-string data-lines)))
     (if (string= payload "[DONE]")
         (progn
           (stream-close stream)
           (values nil nil))
         (values (%decode-stream-event
-                 stream payload (ollama-stream-line-number stream))
+                 stream payload (ollama-stream-line-number stream) data-length)
                 t))))
 
 (defun %sse-data-line (line data-lines data-length limit)
-  (let ((data (subseq line 5)))
-    (when (and (plusp (length data))
-               (char= (char data 0) #\Space))
-      (setf data (subseq data 1)))
+  (let* ((data-start (if (and (> (length line) 5)
+                              (char= (char line 5) #\Space))
+                         6
+                         5))
+         (data (subseq line data-start)))
     (let ((next-length (+ data-length
                           (if data-lines 1 0)
                           (%utf8-octet-length data))))
@@ -157,10 +169,10 @@
            :message "SSE event contains too many lines."
            :detail max-event-lines)))
 
-(defun %sse-end-of-input (stream data-lines)
+(defun %sse-end-of-input (stream data-lines data-length)
   (stream-close stream)
   (if data-lines
-      (%sse-data-event stream data-lines)
+      (%sse-data-event stream data-lines data-length)
       (values nil nil)))
 
 (defun %stream-next-sse (stream)
@@ -172,7 +184,7 @@
     (loop
       (multiple-value-bind (line present-p) (%read-wire-line stream)
         (unless present-p
-          (return (%sse-end-of-input stream data-lines)))
+          (return (%sse-end-of-input stream data-lines data-length)))
         (incf (ollama-stream-line-number stream))
         (incf event-line-count)
         (%validate-sse-event-line-count event-line-count max-event-lines)
@@ -185,4 +197,4 @@
           (setf data-lines next-lines
                 data-length next-length)
           (when emit-p
-            (return (%sse-data-event stream data-lines))))))))
+            (return (%sse-data-event stream data-lines data-length))))))))

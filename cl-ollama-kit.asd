@@ -12,13 +12,6 @@
                (:version "cl-json-kit" "1.2.0"))
   :pathname "src"
   :serial t
-  ;; Compile serial source components in the library package once it exists.
-  ;; The fallback keeps the initial package definition readable, while this
-  ;; ASDF reader context avoids package-switch forms in every component.
-  :around-compile (lambda (thunk)
-                    (let ((*package* (or (find-package '#:ollama-kit)
-                                         *package*)))
-                      (funcall thunk)))
   :components ((:file "package")
                (:file "conditions")
                (:file "data-model")
@@ -55,6 +48,8 @@
                (:file "client-test")
                (:file "stream-test")
                (:file "api-test")
+               (:file "openai-api-test")
+               (:file "web-api-test")
                (:file "coverage-test")
                (:file "data-contract-test")
                (:file "stream-edge-test")

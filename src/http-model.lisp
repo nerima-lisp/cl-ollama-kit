@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %validate-http-request-url-argument (url)
   (unless (and (stringp url) (plusp (length url)))
     (error 'ollama-argument-error

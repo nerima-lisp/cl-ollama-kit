@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defparameter +default-base-url+
   "http://localhost:11434/api"
   "The default native API endpoint used by MAKE-CLIENT.")

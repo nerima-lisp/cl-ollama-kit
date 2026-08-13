@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (define-native-stream-pair generate generate-stream
     (client model prompt
             &key

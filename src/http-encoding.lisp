@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %join-url (base-url path)
   (%validate-request-path path)
   (concatenate 'string
@@ -34,6 +36,8 @@
 
 (defun %request-body-length (body)
   (typecase body
-    (string (length (cl-codec-kit:string-to-octets body :encoding :utf-8)))
+    ;; Count UTF-8 octets without allocating a second representation of the
+    ;; body.  The actual conversion remains in the transport boundary.
+    (string (%utf8-octet-length body))
     ((vector (unsigned-byte 8)) (length body))
     (otherwise nil)))

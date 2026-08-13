@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (define-condition ollama-error (error)
   ((message
     :initarg :message

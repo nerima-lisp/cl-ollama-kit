@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %validate-web-query (query)
   (unless (and (stringp query) (plusp (length query)))
     (error 'ollama-argument-error

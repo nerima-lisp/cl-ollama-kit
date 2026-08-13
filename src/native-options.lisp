@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %optional-json-pair (key value &optional (transform #'identity))
   (when (%json-supplied-p value)
     (cons key (funcall transform value))))
@@ -27,3 +29,6 @@
   (if (or (stringp value) (symbolp value))
       (%native-enum value)
       (%native-bool value)))
+
+(declaim (inline %optional-json-pair %stream-option-pair %native-bool
+                 %native-enum %native-think))

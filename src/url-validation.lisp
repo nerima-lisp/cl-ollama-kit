@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %trim-base-url (base-url)
   (unless (and (stringp base-url) (plusp (length base-url)))
     (error 'ollama-argument-error

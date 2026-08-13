@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %lambda-list-spec-variable (spec)
   (cond
     ((symbolp spec) spec)
@@ -136,3 +138,21 @@ field instead of sending its false value."
   (%expand-native-stream-pair
    name stream-name lambda-list method path body-form documentation
    stream-documentation stream-body-form stream-body-form-supplied-p))
+(defmacro with-http-response ((response-form) &body body)
+  "Evaluate RESPONSE-FORM and close its HTTP response after BODY."
+  (let ((response (gensym "RESPONSE-")))
+    `(let ((,response ,response-form))
+       (unwind-protect
+            (progn ,@body)
+         (%close-response-safely ,response)))))
+
+(defmacro with-json-response ((value-var response-var request-form) &body body)
+  "Bind parsed JSON and its response, then close the response after BODY."
+  (let ((value (gensym "VALUE-"))
+        (response (gensym "RESPONSE-")))
+    `(multiple-value-bind (,value ,response) ,request-form
+       (let ((,value-var ,value)
+             (,response-var ,response))
+         (unwind-protect
+              (progn ,@body)
+           (%close-response-safely ,response-var))))))

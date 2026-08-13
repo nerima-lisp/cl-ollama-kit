@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %validate-api-key (api-key)
   (when (and api-key (not (stringp api-key)))
     (error 'ollama-argument-error :message "API-KEY must be a string."))

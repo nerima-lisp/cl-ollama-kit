@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %decode-utf8 (octets)
   (handler-case
       (multiple-value-bind (text remainder)
@@ -58,7 +60,7 @@
     (and known-p subtype-p)))
 
 (defun %read-binary-response-stream-string (stream max-input-length)
-  (let ((bytes (make-array 0
+  (let ((bytes (make-array (min max-input-length 4096)
                            :element-type '(unsigned-byte 8)
                            :adjustable t
                            :fill-pointer 0)))
@@ -95,8 +97,9 @@
       (%decode-response-body (http-response-body response)
                              max-input-length)))
 
-(defun %parse-json-text (text max-input-length)
-  (when (and max-input-length
+(defun %parse-json-text (text max-input-length &optional length-validated-p)
+  (when (and (not length-validated-p)
+             max-input-length
              (> (%utf8-octet-length text) max-input-length))
     (error 'ollama-protocol-error
            :message "HTTP response body exceeds the configured limit."

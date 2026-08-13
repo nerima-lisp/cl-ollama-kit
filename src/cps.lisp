@@ -1,3 +1,5 @@
+#.(progn (in-package :ollama-kit) nil)
+
 (defun %call-with-ollama-error (operation success failure)
   "Dispatch OPERATION's values to SUCCESS or an OLLAMA-ERROR to FAILURE."
   (let ((values
