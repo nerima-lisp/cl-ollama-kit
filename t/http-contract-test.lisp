@@ -26,8 +26,7 @@
                 (assert
                  (hash-table-p (ollama-kit::%parse-json-text "{\"x\":1}" 16)))
                 (assert
-                 (hash-table-p
-                  (ollama-kit::%parse-json-text "{\"x\":1}" 16 t)))
+                 (hash-table-p (ollama-kit::%parse-json-text "{\"x\":1}" 16 t)))
                 (assert
                  (%signals-p 'ollama-protocol-error
                              (lambda ()

@@ -416,29 +416,24 @@
 (describe "coverage boundary contracts"
           (it "executes inline input, JSON, and native option helpers"
               (locally
-                  (declare
-                   (notinline ollama-kit::%utf8-character-octets
-                              ollama-kit::%utf8-octet-length
-                              ollama-kit::%json-supplied-p
-                              ollama-kit::%json-enum
-                              ollama-kit::%json-array
-                              ollama-kit::%optional-json-pair
-                              ollama-kit::%stream-option-pair
-                              ollama-kit::%native-bool
-                              ollama-kit::%native-enum
-                              ollama-kit::%native-think))
+                (declare (notinline ollama-kit::%utf8-character-octets
+                                    ollama-kit::%utf8-octet-length
+                                    ollama-kit::%json-supplied-p
+                                    ollama-kit::%json-enum
+                                    ollama-kit::%json-array
+                                    ollama-kit::%optional-json-pair
+                                    ollama-kit::%stream-option-pair
+                                    ollama-kit::%native-bool
+                                    ollama-kit::%native-enum
+                                    ollama-kit::%native-think))
                 (assert
-                 (= 1
-                    (ollama-kit::%utf8-character-octets (code-char #x41))))
+                 (= 1 (ollama-kit::%utf8-character-octets (code-char #x41))))
                 (assert
-                 (= 2
-                    (ollama-kit::%utf8-character-octets (code-char #xe9))))
+                 (= 2 (ollama-kit::%utf8-character-octets (code-char #xe9))))
                 (assert
-                 (= 3
-                    (ollama-kit::%utf8-character-octets (code-char #x20ac))))
+                 (= 3 (ollama-kit::%utf8-character-octets (code-char #x20ac))))
                 (assert
-                 (= 4
-                    (ollama-kit::%utf8-character-octets (code-char #x1d11e))))
+                 (= 4 (ollama-kit::%utf8-character-octets (code-char #x1d11e))))
                 (assert
                  (= 10
                     (ollama-kit::%utf8-octet-length
@@ -450,22 +445,18 @@
                       'string))))
                 (assert
                  (not
-                  (ollama-kit::%json-supplied-p
-                   ollama-kit::+json-unspecified+)))
+                  (ollama-kit::%json-supplied-p ollama-kit::+json-unspecified+)))
                 (assert (ollama-kit::%json-supplied-p nil))
                 (assert (equal "user" (ollama-kit::%json-enum :user)))
                 (assert (equal "value" (ollama-kit::%json-enum "value")))
                 (let ((vector #(1 2 3)))
                   (assert (eq vector (ollama-kit::%json-array vector))))
-                (assert
-                 (equalp #(1 2 3)
-                         (ollama-kit::%json-array '(1 2 3))))
+                (assert (equalp #(1 2 3) (ollama-kit::%json-array '(1 2 3))))
                 (assert (eql 7 (ollama-kit::%json-array 7)))
                 (assert
                  (null
-                  (ollama-kit::%optional-json-pair
-                   "missing"
-                   ollama-kit::+json-unspecified+)))
+                  (ollama-kit::%optional-json-pair "missing"
+                                                   ollama-kit::+json-unspecified+)))
                 (assert
                  (equal '("value" . 7)
                         (ollama-kit::%optional-json-pair "value" 7)))
@@ -473,14 +464,12 @@
                  (equal '("value" . 8)
                         (ollama-kit::%optional-json-pair "value" 7 #'1+)))
                 (assert
-                 (equal '("stream" . t)
-                        (ollama-kit::%stream-option-pair t)))
+                 (equal '("stream" . t) (ollama-kit::%stream-option-pair t)))
                 (assert
                  (eq json-kit:+json-false+
                      (cdr (ollama-kit::%stream-option-pair nil))))
                 (assert
-                 (eq json-kit:+json-false+
-                     (ollama-kit::%native-bool nil)))
+                 (eq json-kit:+json-false+ (ollama-kit::%native-bool nil)))
                 (assert
                  (eq json-kit:+json-false+
                      (ollama-kit::%native-bool json-kit:+json-false+)))
@@ -495,6 +484,6 @@
                 (assert (equal "low" (ollama-kit::%native-think "low")))
                 (assert (equal "nil" (ollama-kit::%native-think nil)))
                 (assert (equal "t" (ollama-kit::%native-think t)))
-                (assert (eq json-kit:+json-false+
-                            (ollama-kit::%native-think
-                             json-kit:+json-false+))))))
+                (assert
+                 (eq json-kit:+json-false+
+                     (ollama-kit::%native-think json-kit:+json-false+))))))

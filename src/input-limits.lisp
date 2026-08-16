@@ -1,5 +1,4 @@
 ;;; UTF-8 byte accounting shared by the HTTP and streaming boundaries.
-
 #.(progn (in-package :ollama-kit) nil)
 
 (defun %utf8-character-octets (character)
