@@ -2,8 +2,7 @@
 
 (defun %close-stream-safely (stream reason)
   "Close STREAM without replacing a primary condition with a cleanup error."
-  (handler-case
-      (stream-close stream)
+  (handler-case (stream-close stream)
     (error (condition)
       (warn "Ollama stream cleanup failed ~A: ~A" reason condition))))
 
@@ -33,17 +32,19 @@ At EOF, or after an SSE `[DONE]` marker, NIL, NIL is returned."
   "Consume STREAM into a list, optionally stopping after LIMIT events."
   (unless (or (null limit) (typep limit '(integer 0 *)))
     (error 'ollama-argument-error
-           :message "STREAM-EVENTS LIMIT must be NIL or a non-negative integer."))
+           :message
+           "STREAM-EVENTS LIMIT must be NIL or a non-negative integer."))
   (let ((events '())
         (count 0))
     (unwind-protect
-         (progn
-           (loop while (or (null limit) (< count limit))
-                 do (multiple-value-bind (event present-p) (stream-next stream)
-                      (unless present-p (return))
-                      (push event events)
-                      (incf count)))
-           (nreverse events))
+        (progn
+          (loop while (or (null limit) (< count limit))
+                do (multiple-value-bind (event present-p) (stream-next stream)
+                     (unless present-p
+                       (return))
+                     (push event events)
+                     (incf count)))
+          (nreverse events))
       (%close-stream-safely stream "after consumption"))))
 
 (defun stream-channel (stream &rest options)
@@ -58,8 +59,8 @@ producer reaches EOF or exits because of an error."
     (cl-concurrent-kit:channel-producer
      (emit :buffer-size buffer-size :scope scope :executor executor)
      (unwind-protect
-      (loop
-       (multiple-value-bind (event present-p) (stream-next stream)
-         (unless present-p (return))
-         (funcall emit event)))
-      (%close-stream-safely stream "after channel production")))))
+         (loop (multiple-value-bind (event present-p) (stream-next stream)
+                 (unless present-p
+                   (return))
+                 (funcall emit event)))
+       (%close-stream-safely stream "after channel production")))))

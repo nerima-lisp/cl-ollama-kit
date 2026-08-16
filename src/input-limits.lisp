@@ -2,8 +2,6 @@
 
 #.(progn (in-package :ollama-kit) nil)
 
-(declaim (inline %utf8-character-octets %utf8-octet-length))
-
 (defun %utf8-character-octets (character)
   "Return the number of UTF-8 octets required for CHARACTER."
   (let ((code-point (char-code character)))

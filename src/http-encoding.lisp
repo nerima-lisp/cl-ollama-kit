@@ -13,22 +13,26 @@
 
 (defun %encode-json (object &optional max-request-length)
   (let ((text
-          (handler-case
-              (with-output-to-string (stream)
-                (json-kit:write-json object stream
-                                     :max-output-length max-request-length))
-            (json-kit:json-serialization-error (condition)
-              (if (%json-output-limit-error-p condition)
-                  (error 'ollama-argument-error
-                         :message "JSON request body exceeds the configured limit."
-                         :detail max-request-length)
-                  (error condition))))))
+         (handler-case (with-output-to-string (stream)
+                         (json-kit:write-json object
+                                              stream
+                                              :max-output-length
+                                              max-request-length))
+           (json-kit:json-serialization-error (condition)
+             (if (%json-output-limit-error-p condition)
+                 (error 'ollama-argument-error
+                        :message
+                        "JSON request body exceeds the configured limit."
+                        :detail
+                        max-request-length)
+                 (error condition))))))
     (let ((octets (cl-codec-kit:string-to-octets text :encoding :utf-8)))
-      (when (and max-request-length
-                 (> (length octets) max-request-length))
+      (when (and max-request-length (> (length octets) max-request-length))
         (error 'ollama-argument-error
-               :message "JSON request body exceeds the configured limit."
-               :detail max-request-length))
+               :message
+               "JSON request body exceeds the configured limit."
+               :detail
+               max-request-length))
       octets)))
 
 (defun %octet-vector-p (value)

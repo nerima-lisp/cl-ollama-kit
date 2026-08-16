@@ -448,6 +448,29 @@
         "type": "github"
       }
     },
+    "cl-sse-kit": {
+      "inputs": {
+        "cl-weave": [
+          "cl-weave"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1786776024,
+        "narHash": "sha256-CN89QzOOvc6cUnDqR4/cuVd7Vp2WyM10L3HtAGUF+dc=",
+        "owner": "nerima-lisp",
+        "repo": "cl-sse-kit",
+        "rev": "5e8ee65c56116ae20e08e012e7a130526fd0602c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nerima-lisp",
+        "repo": "cl-sse-kit",
+        "type": "github"
+      }
+    },
     "cl-weave": {
       "flake": false,
       "locked": {
@@ -651,6 +674,7 @@
         "cl-concurrent-kit": "cl-concurrent-kit",
         "cl-json-kit": "cl-json-kit_2",
         "cl-nix-forge": "cl-nix-forge",
+        "cl-sse-kit": "cl-sse-kit",
         "cl-weave": "cl-weave_3",
         "nixpkgs": "nixpkgs",
         "paredit-cli": "paredit-cli_3",

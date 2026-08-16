@@ -25,9 +25,10 @@ nix develop
 ```
 
 The standalone test and coverage runners initialize a local ASDF source
-registry for this checkout and sibling `nerima-lisp` dependencies. When
-loading the system from another REPL, make those systems discoverable through
-ASDF first; the Nix shell provides the pinned development environment.
+registry for this checkout and nearby `nerima-lisp` source checkouts when
+their `.asd` files are present. When loading the system from another REPL,
+make those systems discoverable through ASDF first; the Nix shell remains the
+source of truth for the pinned development environment.
 
 ## Create a client
 

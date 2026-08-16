@@ -3,6 +3,7 @@
   (:export
    ;; Client and transport boundary.
    #:+default-base-url+
+   #:+anthropic-default-base-url+
    #:make-client #:client-p #:client-base-url #:client-network-boundary
    #:client-headers #:client-timeout #:client-max-input-length
    #:client-max-request-length #:client-api-key-p
@@ -15,7 +16,8 @@
    #:http-response-close-function #:response-success-p
    #:close-http-response
    #:perform-request #:request-json #:request-raw
-   #:with-http-response #:with-json-response #:call-with-json
+   #:with-http-response #:with-json-response #:with-ollama-continuations
+   #:call-with-json
    #:call-with-stream
 
    ;; Conditions.
@@ -35,6 +37,7 @@
    #:ollama-stream-error #:ollama-stream-error-event
    #:ollama-stream-error-line
    #:open-openai-stream
+   #:open-anthropic-stream
    #:stream-next #:stream-events #:stream-close #:stream-closed-p
    #:stream-channel
 
@@ -56,4 +59,8 @@
    #:openai-model #:openai-models #:openai-chat-completions
    #:openai-chat-completions-stream #:openai-completions
    #:openai-completions-stream #:openai-embeddings
-   #:openai-responses #:openai-responses-stream #:openai-images))
+   #:openai-responses #:openai-responses-stream #:openai-images
+
+   ;; Anthropic-compatible API.
+   #:make-anthropic-client #:anthropic-messages
+   #:anthropic-messages-stream))

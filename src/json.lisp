@@ -21,8 +21,6 @@
     ((listp value) (coerce value 'vector))
     (t value)))
 
-(declaim (inline %json-supplied-p %json-enum %json-array))
-
 (defun %json-object (&rest pairs)
   ;; PAIRS is the fresh list owned by this &REST binding.  Filter it in place
   ;; to avoid allocating a second list for omitted optional fields.

@@ -6,10 +6,11 @@ library provides the protocol-facing layers around it.
 
 ## Boundary ownership
 
-`ollama-kit:make-client` and `ollama-kit:make-openai-client` require a
-`cl-boundary-kit` network boundary. The boundary decides how sockets, DNS,
-proxies, TLS, pooling, timeouts, and test doubles are implemented. The client
-passes an `ollama-kit:http-request` to that boundary and expects an
+`ollama-kit:make-client`, `ollama-kit:make-openai-client`, and
+`ollama-kit:make-anthropic-client` require a `cl-boundary-kit` network
+boundary. The boundary decides how sockets, DNS, proxies, TLS, pooling,
+timeouts, and test doubles are implemented. The client passes an
+`ollama-kit:http-request` to that boundary and expects an
 `ollama-kit:http-response` back.
 
 For request helpers, an omitted `:timeout` resolves to the client's configured
@@ -70,10 +71,10 @@ an omitted field from an explicit false, zero, empty array, or JSON null.
 ## Streaming layer
 
 Native helpers open NDJSON streams through
-`ollama-kit:open-ollama-stream`. OpenAI-compatible helpers open SSE streams
-through `ollama-kit:open-openai-stream`. `ollama-kit:stream-next` normalizes
-both formats to an event plus a presence flag; EOF and `[DONE]` become
-`nil, nil`.
+`ollama-kit:open-ollama-stream`. OpenAI-compatible and Anthropic-compatible
+helpers open SSE streams through `ollama-kit:open-openai-stream` and
+`ollama-kit:open-anthropic-stream`. `ollama-kit:stream-next` normalizes both
+formats to an event plus a presence flag; EOF and `[DONE]` become `nil, nil`.
 
 The caller owns every returned stream. `ollama-kit:stream-close` is idempotent,
 and `ollama-kit:stream-channel` provides a channel and completion promise for
