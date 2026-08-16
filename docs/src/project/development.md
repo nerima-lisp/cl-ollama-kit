@@ -121,3 +121,11 @@ excluded from navigation.
 Keep examples package-qualified, use relative `.md` links inside the docs tree,
 and keep navigation focused on guides, reference, and project process. Run the
 narrowest relevant Lisp and documentation checks before handing off a change.
+
+## Completed work units
+
+Treat each completed branch or worktree as one reviewable work unit. Commit the
+complete unit, merge it into `main` from an isolated worktree, and run the
+package, test, coverage, documentation, formatting, and structural Lisp checks.
+After every check passes, remove the merged worktree and branch. Keep active
+worktrees and branches for unfinished units.
