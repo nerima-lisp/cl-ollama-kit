@@ -1,9 +1,10 @@
 # cl-ollama-kit documentation
 
 `cl-ollama-kit` is a transport-independent Common Lisp client for Ollama's
-native API and OpenAI-compatible API. It keeps the network boundary in the
-application, while providing request models, JSON encoding, typed conditions,
-and NDJSON or Server-Sent Events stream handling.
+native API, OpenAI-compatible API, and Anthropic-compatible Messages API. It
+keeps the network boundary in the application, while providing request
+models, JSON encoding, typed conditions, and NDJSON or Server-Sent Events
+stream handling.
 
 ## Start here
 
@@ -13,6 +14,8 @@ and NDJSON or Server-Sent Events stream handling.
   model lifecycle operations, blobs, and Ollama Cloud web search/fetch.
 - [OpenAI-compatible API guide](guide/openai-compatible-api.md) covers the
   `/v1` request and streaming helpers.
+- [Anthropic-compatible API guide](guide/anthropic-compatible-api.md) covers
+  the `/v1/messages` request and streaming helpers.
 
 ## Reference
 
@@ -27,6 +30,6 @@ and NDJSON or Server-Sent Events stream handling.
 
 The core does not select a socket, DNS, proxy, TLS, or connection-pooling
 implementation. The caller supplies a `cl-boundary-kit` network boundary to
-`ollama-kit:make-client` or `ollama-kit:make-openai-client`. This keeps
-production policy and test doubles visible where the application composes
-them.
+`ollama-kit:make-client`, `ollama-kit:make-openai-client`, or
+`ollama-kit:make-anthropic-client`. This keeps production policy and test
+doubles visible where the application composes them.

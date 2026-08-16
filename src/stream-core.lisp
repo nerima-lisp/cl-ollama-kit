@@ -1,32 +1,48 @@
 (defun %close-response (response)
   (%close-response-safely response))
 
-(defun %open-event-stream (client method path
-                           &key body body-supplied-p timeout headers
-                             wire-format
-                             accept)
-  (let* ((encoded-body (when body-supplied-p
-                         (%encode-json body
-                                      (client-max-request-length client))))
-         (response (%perform-request-with-optional-body
-                    client method path body-supplied-p encoded-body
-                    :stream-p t
-                    :timeout timeout
-                    :headers headers
-                    :accept accept)))
-    (handler-case
-        (%ensure-success response client)
+(defun %open-event-stream (client method
+                                  path
+                                  &key
+                                  body
+                                  body-supplied-p
+                                  timeout
+                                  headers
+                                  wire-format
+                                  accept)
+  (let* ((encoded-body
+          (when body-supplied-p
+            (%encode-json body (client-max-request-length client))))
+         (response
+          (%perform-request-with-optional-body client
+                                               method
+                                               path
+                                               body-supplied-p
+                                               encoded-body
+                                               :stream-p
+                                               t
+                                               :timeout
+                                               timeout
+                                               :headers
+                                               headers
+                                               :accept
+                                               accept)))
+    (handler-case (%ensure-success response client)
       (ollama-error (condition)
         (%close-response response)
         (error condition)))
-    (handler-case
-         (%make-ollama-stream
-         :stream (%response-input-stream response
-                                         (client-max-input-length client))
-         :response response
-         :close-function (http-response-close-function response)
-         :wire-format wire-format
-         :max-line-length (client-max-input-length client))
+    (handler-case (%make-ollama-stream :stream
+                                       (%response-input-stream response
+                                                               (client-max-input-length
+                                                                client))
+                                       :response
+                                       response
+                                       :close-function
+                                       (http-response-close-function response)
+                                       :wire-format
+                                       wire-format
+                                       :max-line-length
+                                       (client-max-input-length client))
       (error (condition)
         (%close-response response)
         (error condition)))))
@@ -37,26 +53,44 @@
 BODY is encoded as JSON when supplied.  The returned stream owns the response
 stream and must eventually be closed with STREAM-CLOSE."
   (%validate-keyword-options options '(:body :timeout :headers))
-  (%open-event-stream
-   client method path
-   :body (%keyword-option options :body nil)
-   :body-supplied-p (%keyword-option-supplied-p options :body)
-   :timeout (%keyword-option options :timeout +timeout-unspecified+)
-   :headers (%keyword-option options :headers nil)
-   :wire-format :ndjson
-   :accept "application/x-ndjson"))
+  (%open-event-stream client
+                      method
+                      path
+                      :body
+                      (%keyword-option options :body nil)
+                      :body-supplied-p
+                      (%keyword-option-supplied-p options :body)
+                      :timeout
+                      (%keyword-option options :timeout +timeout-unspecified+)
+                      :headers
+                      (%keyword-option options :headers nil)
+                      :wire-format
+                      :ndjson
+                      :accept
+                      "application/x-ndjson"))
 
 (defun open-openai-stream (client method path &rest options)
   "Open an OpenAI-compatible Server-Sent Events response stream."
   (%validate-keyword-options options '(:body :timeout :headers))
-  (%open-event-stream
-   client method path
-   :body (%keyword-option options :body nil)
-   :body-supplied-p (%keyword-option-supplied-p options :body)
-   :timeout (%keyword-option options :timeout +timeout-unspecified+)
-   :headers (%keyword-option options :headers nil)
-   :wire-format :sse
-   :accept "text/event-stream"))
+  (%open-event-stream client
+                      method
+                      path
+                      :body
+                      (%keyword-option options :body nil)
+                      :body-supplied-p
+                      (%keyword-option-supplied-p options :body)
+                      :timeout
+                      (%keyword-option options :timeout +timeout-unspecified+)
+                      :headers
+                      (%keyword-option options :headers nil)
+                      :wire-format
+                      :sse
+                      :accept
+                      "text/event-stream"))
+
+(defun open-anthropic-stream (client method path &rest options)
+  "Open an Anthropic-compatible Server-Sent Events response stream."
+  (apply #'open-openai-stream client method path options))
 
 (defun stream-closed-p (stream)
   (ollama-stream-closed-p stream))
@@ -65,7 +99,8 @@ stream and must eventually be closed with STREAM-CLOSE."
   "Close STREAM.  Closing is idempotent and releases the HTTP response stream."
   (unless (ollama-stream-p stream)
     (error 'ollama-argument-error
-           :message "STREAM-CLOSE requires an Ollama stream."))
+           :message
+           "STREAM-CLOSE requires an Ollama stream."))
   (unless (stream-closed-p stream)
     (setf (ollama-stream-closed-p stream) t)
     (let ((response (ollama-stream-response stream))

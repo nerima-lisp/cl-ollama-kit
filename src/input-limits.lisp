@@ -1,5 +1,4 @@
 ;;; UTF-8 byte accounting shared by the HTTP and streaming boundaries.
-
 (defun %utf8-character-octets (character)
   "Return the number of UTF-8 octets required for CHARACTER."
   (let ((code-point (char-code character)))

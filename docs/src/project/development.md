@@ -21,6 +21,7 @@ src/
   http-encoding.lisp     URL joining and bounded JSON request encoding
   http-decoding.lisp     UTF-8, JSON response decoding, and HTTP errors
   transport.lisp         boundary requests and response ownership
+  transport-scope.lisp   response lifetime macros
   cps.lisp               continuation-passing transport helpers
   stream-core.lisp       NDJSON and SSE stream opening
   stream-parser.lisp     event decoding
@@ -28,6 +29,8 @@ src/
   native-*.lisp          native Ollama endpoint helpers
   openai-api.lisp        OpenAI-compatible endpoint helpers
 t/
+  test-support.lisp      shared boundary and response fixtures
+  stream-api-test.lisp   stream lifecycle and error contracts
   *.lisp                 unit, edge, contract, property, and coverage tests
 ```
 
@@ -90,7 +93,8 @@ The shell also provides the structural Lisp tooling used by the project. Run
 the local structural inspection explicitly with:
 
 ```sh
-paredit inspect lint src t --dialect common-lisp --output json --stats
+paredit inspect workspace --output json src t
+paredit inspect lint --fail-on error src t
 ```
 
 ## Documentation checks

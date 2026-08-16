@@ -10,8 +10,10 @@
   (cond
     ((stringp key) key)
     ((symbolp key) (string-downcase (symbol-name key)))
-    (t (error 'ollama-argument-error
-              :message "JSON object keys must be strings or symbols."))))
+    (t
+     (error 'ollama-argument-error
+            :message
+            "JSON object keys must be strings or symbols."))))
 
 (defun %json-array (value)
   (cond
@@ -20,21 +22,20 @@
     (t value)))
 
 (defun %json-object (&rest pairs)
-  (json-kit:alist->json-object (remove nil pairs)
-                               :duplicate-key-policy :error))
+  (json-kit:alist->json-object (remove nil pairs) :duplicate-key-policy :error))
 
 (defun json-object (&rest pairs)
   "Create a JSON object from alternating KEY VALUE arguments.
 
 Keys are strings or symbols.  This helper is intentionally explicit so a
-plain Common Lisp alist is never guessed to be a JSON object by accident." 
+plain Common Lisp alist is never guessed to be a JSON object by accident."
   (unless (evenp (length pairs))
     (error 'ollama-argument-error
-           :message "JSON-OBJECT requires alternating key and value arguments."))
+           :message
+           "JSON-OBJECT requires alternating key and value arguments."))
   (apply #'%json-object
          (loop for (key value) on pairs by #'cddr
-               collect (cons (%json-key key)
-                             value))))
+               collect (cons (%json-key key) value))))
 
 (defun %json-field-from-members (members key)
   (let ((entry (assoc key members :test #'string=)))
@@ -43,8 +44,7 @@ plain Common Lisp alist is never guessed to be a JSON object by accident."
         (values nil nil))))
 
 (defun %json-alist-p (object)
-  (and (listp object)
-       (or (null object) (every #'consp object))))
+  (and (listp object) (or (null object) (every #'consp object))))
 
 (defun %json-field (object key)
   (cond
@@ -53,39 +53,38 @@ plain Common Lisp alist is never guessed to be a JSON object by accident."
        (values value present-p)))
     ((json-kit:json-object-p object)
      (%json-field-from-members (json-kit:json-object-members object) key))
-    ((%json-alist-p object)
-     (%json-field-from-members object key))
+    ((%json-alist-p object) (%json-field-from-members object key))
     (t (values nil nil))))
 
 (defun make-message (role content
-                     &key
-                       (name +json-unspecified+)
-                       (tool-calls +json-unspecified+)
-                       (thinking +json-unspecified+)
-                       (images +json-unspecified+))
-  "Create a chat message JSON object accepted by the native chat endpoint." 
-  (%json-object
-   (cons "role" (%json-enum role))
-   (cons "content" content)
-   (and (%json-supplied-p name) (cons "name" name))
-   (and (%json-supplied-p tool-calls)
-        (cons "tool_calls" (%json-array tool-calls)))
-   (and (%json-supplied-p thinking) (cons "thinking" thinking))
-   (and (%json-supplied-p images)
-        (cons "images" (%json-array images)))))
+                          &key
+                          (name +json-unspecified+)
+                          (tool-calls +json-unspecified+)
+                          (thinking +json-unspecified+)
+                          (images +json-unspecified+))
+  "Create a chat message JSON object accepted by the native chat endpoint."
+  (%json-object (cons "role" (%json-enum role))
+                (cons "content" content)
+                (and (%json-supplied-p name) (cons "name" name))
+                (and (%json-supplied-p tool-calls)
+                     (cons "tool_calls" (%json-array tool-calls)))
+                (and (%json-supplied-p thinking) (cons "thinking" thinking))
+                (and (%json-supplied-p images)
+                     (cons "images" (%json-array images)))))
 
 (defun %json-object-members (object)
   (cond
     ((hash-table-p object) (json-kit:json-object->alist object))
     ((json-kit:json-object-p object) (json-kit:json-object-members object))
-    ((and (listp object)
-          (or (null object) (every #'consp object))) object)
-    (t (error 'ollama-argument-error
-              :message "Expected a JSON object represented by a hash table or alist."))))
+    ((%json-alist-p object) object)
+    (t
+     (error 'ollama-argument-error
+            :message
+            "Expected a JSON object represented by a hash table or alist."))))
 
 (defun %json-object-with-field (object key value)
   (let* ((members (%json-object-members object))
          (without-key (remove key members :key #'car :test #'string=)))
-    (json-kit:alist->json-object
-     (append without-key (list (cons key value)))
-     :duplicate-key-policy :error)))
+    (json-kit:alist->json-object (append without-key (list (cons key value)))
+                                 :duplicate-key-policy
+                                 :error)))

@@ -47,6 +47,7 @@ nav:
   - Guide:
       - Native API: guide/native-api.md
       - OpenAI-compatible API: guide/openai-compatible-api.md
+      - Anthropic-compatible API: guide/anthropic-compatible-api.md
   - Reference:
       - API: reference/api.md
       - Conditions: reference/conditions.md

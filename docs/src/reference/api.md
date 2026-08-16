@@ -229,6 +229,11 @@ Return the one-based input line associated with a stream error.
 Open an OpenAI-compatible Server-Sent Events stream. The accepted options are
 `:body`, `:timeout`, and `:headers`.
 
+### `open-anthropic-stream`
+
+Open an Anthropic-compatible Server-Sent Events stream. The accepted options
+are `:body`, `:timeout`, and `:headers`.
+
 ### `stream-next`
 
 Return two values: the next decoded event and a true presence flag. Return
@@ -408,3 +413,29 @@ Generate images through the experimental `/images/generations` endpoint from
 a JSON object body. The body may contain `model`, `prompt`, `size`,
 `response_format`, `n`, `quality`, `style`, and `user`. The endpoint returns
 decoded JSON and has no streaming variant.
+
+## Anthropic-compatible API
+
+### `+anthropic-default-base-url+`
+
+The default Anthropic-compatible base URL:
+`http://localhost:11434/v1`.
+
+### `make-anthropic-client`
+
+Create a client for Ollama's Anthropic-compatible Messages API. It accepts the
+same boundary, limit, timeout, header, and plain-HTTP options as
+`make-client`. `:api-key` is sent as `X-API-KEY`; compatibility headers such
+as `anthropic-version` can be supplied through `:headers`.
+
+### `anthropic-messages`
+
+Create a Messages response through `/messages` from a JSON object body. The
+body is forwarded as supplied, so model, messages, tools, thinking, and other
+current compatibility fields remain available without a second typed schema.
+
+### `anthropic-messages-stream`
+
+Stream a Messages response through `/messages` as Server-Sent Events. The
+helper sets the request's `stream` field to true and returns a caller-owned
+stream.

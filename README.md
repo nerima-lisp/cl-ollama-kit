@@ -1,9 +1,9 @@
 # cl-ollama-kit
 
 `cl-ollama-kit` is a transport-independent Common Lisp client for Ollama's
-native API and its OpenAI-compatible API. Applications provide the concrete
-network boundary, so HTTP, TLS, pooling, and test doubles remain explicit at
-the application edge.
+native API, OpenAI-compatible API, and Anthropic-compatible Messages API.
+Applications provide the concrete network boundary, so HTTP, TLS, pooling,
+and test doubles remain explicit at the application edge.
 
 See the [full documentation](docs/src/index.md) for guides and the complete
 API reference.
@@ -43,6 +43,7 @@ the runtime dependencies used by the system.
 - [Getting started](docs/src/getting-started.md)
 - [Native API guide](docs/src/guide/native-api.md)
 - [OpenAI-compatible API guide](docs/src/guide/openai-compatible-api.md)
+- [Anthropic-compatible API guide](docs/src/guide/anthropic-compatible-api.md)
 - [API reference](docs/src/reference/api.md)
 - [Conditions](docs/src/reference/conditions.md)
 - [Architecture](docs/src/reference/architecture.md)
@@ -53,7 +54,8 @@ the runtime dependencies used by the system.
 nix develop
 sbcl --script run-tests.lisp
 sbcl --script run-coverage.lisp
-paredit inspect lint src t --dialect common-lisp --output json --stats
+paredit inspect workspace --output json src t
+paredit inspect lint --fail-on error src t
 nix flake check
 ```
 
