@@ -98,8 +98,7 @@ The shell also provides the structural Lisp tooling used by the project. Run
 the local structural inspection explicitly with:
 
 ```sh
-paredit inspect workspace --output json src t
-paredit inspect lint --fail-on error src t
+paredit inspect lint src t --dialect common-lisp --output json --stats
 ```
 
 ## Documentation checks
@@ -127,5 +126,5 @@ narrowest relevant Lisp and documentation checks before handing off a change.
 Treat each completed branch or worktree as one reviewable work unit. Commit the
 complete unit, merge it into `main` from an isolated worktree, and run the
 package, test, coverage, documentation, formatting, and structural Lisp checks.
-After every check passes, remove the merged worktree and branch. Keep active
-worktrees and branches for unfinished units.
+After every check passes, push `main` and remove the merged worktree and branch.
+Keep active worktrees and branches for unfinished units.

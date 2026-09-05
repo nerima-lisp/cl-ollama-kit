@@ -54,8 +54,7 @@ the runtime dependencies used by the system.
 nix develop
 sbcl --script run-tests.lisp
 sbcl --script run-coverage.lisp
-paredit inspect workspace --output json src t
-paredit inspect lint --fail-on error src t
+paredit inspect lint src t --dialect common-lisp --output json --stats
 nix flake check
 ```
 
