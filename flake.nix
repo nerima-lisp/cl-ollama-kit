@@ -29,12 +29,11 @@
       inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
-    # These are the runtime dependencies declared by cl-ollama-kit.asd.
-    # Keep their ASDF systems in lispDependencies so the package closure and
-    # the test closure describe the same dependency boundary as ASDF.
+    # cl-boundary-kit is used by the test system and by cl-resilience-kit.
     cl-boundary-kit = {
       url = "github:nerima-lisp/cl-boundary-kit/v2.3.0";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-host-kit.follows = "cl-host-kit";
       inputs.cl-weave.follows = "cl-weave";
       inputs.cl-nix-forge.follows = "cl-nix-forge";
       inputs.treefmt-nix.follows = "treefmt-nix";
@@ -53,6 +52,8 @@
       url = "github:nerima-lisp/cl-concurrent-kit/v0.6.1";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.cl-boundary-kit.follows = "cl-boundary-kit";
+      inputs.cl-date-kit.follows = "cl-date-kit";
+      inputs.cl-host-kit.follows = "cl-host-kit";
       inputs.cl-weave.follows = "cl-weave";
       inputs.cl-nix-forge.follows = "cl-nix-forge";
       inputs.treefmt-nix.follows = "treefmt-nix";
@@ -66,8 +67,85 @@
       inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
-    # Used as an independent finite SSE grammar oracle in the check closure.
-    # The production parser remains incremental and bounded in cl-ollama-kit.
+    cl-date-kit = {
+      url = "github:nerima-lisp/cl-date-kit/v1.0.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-weave.follows = "cl-weave";
+      inputs.cl-nix-forge.follows = "cl-nix-forge";
+      inputs.treefmt-nix.follows = "treefmt-nix";
+    };
+
+    cl-deflate-kit = {
+      url = "github:nerima-lisp/cl-deflate-kit/main";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-weave.follows = "cl-weave";
+    };
+
+    cl-crypto-kit = {
+      url = "github:nerima-lisp/cl-crypto-kit/761e95926923eba809f3e5deac88e68414aef894";
+      flake = false;
+    };
+
+    cl-hpack-codec-kit = {
+      url = "github:nerima-lisp/cl-hpack-codec-kit/08bc4c9ff1bcedb0624ad65d567a5e2d213b7ab9";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-weave.follows = "cl-weave";
+    };
+
+    cl-host-kit = {
+      url = "github:nerima-lisp/cl-host-kit/v0.3.1";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-weave.follows = "cl-weave";
+      inputs.cl-nix-forge.follows = "cl-nix-forge";
+      inputs.treefmt-nix.follows = "treefmt-nix";
+    };
+
+    cl-http-kit = {
+      url = "github:nerima-lisp/cl-http-kit/v0.5.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-weave.follows = "cl-weave";
+      inputs.treefmt-nix.follows = "treefmt-nix";
+      inputs.paredit-cli.follows = "paredit-cli";
+      inputs.cl-boundary-kit.follows = "cl-boundary-kit";
+      inputs.cl-codec-kit.follows = "cl-codec-kit";
+      inputs.cl-concurrent-kit.follows = "cl-concurrent-kit";
+      inputs.cl-crypto-kit.follows = "cl-crypto-kit";
+      inputs.cl-date-kit.follows = "cl-date-kit";
+      inputs.cl-deflate-kit.follows = "cl-deflate-kit";
+      inputs.cl-host-kit.follows = "cl-host-kit";
+      inputs.cl-hpack-codec-kit.follows = "cl-hpack-codec-kit";
+      inputs.cl-http-message-kit.follows = "cl-http-message-kit";
+      inputs.cl-tls-kit.follows = "cl-tls-kit";
+    };
+
+    cl-http-message-kit = {
+      url = "github:nerima-lisp/cl-http-message-kit/v2.0.1";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-weave.follows = "cl-weave";
+      inputs.paredit-cli.follows = "paredit-cli";
+      inputs.cl-hpack-codec-kit.follows = "cl-hpack-codec-kit";
+    };
+
+    cl-resilience-kit = {
+      url = "github:nerima-lisp/cl-resilience-kit/v1.0.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-nix-forge.follows = "cl-nix-forge";
+      inputs.cl-weave.follows = "cl-weave";
+      inputs.paredit-cli.follows = "paredit-cli";
+      inputs.treefmt-nix.follows = "treefmt-nix";
+      inputs.cl-boundary-kit.follows = "cl-boundary-kit";
+      inputs.cl-concurrent-kit.follows = "cl-concurrent-kit";
+      inputs.cl-date-kit.follows = "cl-date-kit";
+    };
+
+    cl-tls-kit = {
+      url = "github:nerima-lisp/cl-tls-kit/v0.5.2";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-weave.follows = "cl-weave";
+      inputs.cl-crypto-kit.follows = "cl-crypto-kit";
+    };
+
+    # cl-sse-kit's flake publishes source only; compile the runtime system below.
     cl-sse-kit = {
       url = "github:nerima-lisp/cl-sse-kit/v1.1.0";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -75,6 +153,15 @@
       inputs.cl-boundary-kit.follows = "cl-boundary-kit";
       inputs.cl-concurrent-kit.follows = "cl-concurrent-kit";
       inputs.cl-weave.follows = "cl-weave";
+      inputs.cl-crypto-kit.follows = "cl-crypto-kit";
+      inputs.cl-date-kit.follows = "cl-date-kit";
+      inputs.cl-deflate-kit.follows = "cl-deflate-kit";
+      inputs.cl-host-kit.follows = "cl-host-kit";
+      inputs.cl-hpack-codec-kit.follows = "cl-hpack-codec-kit";
+      inputs.cl-http-kit.follows = "cl-http-kit";
+      inputs.cl-http-message-kit.follows = "cl-http-message-kit";
+      inputs.cl-resilience-kit.follows = "cl-resilience-kit";
+      inputs.cl-tls-kit.follows = "cl-tls-kit";
     };
   };
 
@@ -89,8 +176,17 @@
       cl-boundary-kit,
       cl-codec-kit,
       cl-concurrent-kit,
+      cl-date-kit,
+      cl-deflate-kit,
+      cl-crypto-kit,
+      cl-hpack-codec-kit,
+      cl-host-kit,
+      cl-http-kit,
+      cl-http-message-kit,
       cl-json-kit,
+      cl-resilience-kit,
       cl-sse-kit,
+      cl-tls-kit,
     }:
     let
       systems = [
@@ -111,31 +207,76 @@
         platforms = nixpkgs.lib.platforms.unix;
       };
 
-      lispDependencies = ctx: [
-        cl-boundary-kit.packages.${ctx.system}.cl-boundary-kit
-        cl-codec-kit.packages.${ctx.system}.cl-codec-kit
-        cl-concurrent-kit.packages.${ctx.system}.cl-concurrent-kit
-        cl-json-kit.packages.${ctx.system}.cl-json-kit
-      ];
-
-      lispCheckDependencies =
+      lispDependencies =
         ctx:
         let
-          clSseKit = cl-nix-forge.lib.${ctx.system}.fromDerivation {
-            drv = cl-nix-forge.lib.${ctx.system}.lispDerivation {
-              pname = "cl-sse-kit";
-              version = "1.1.0";
-              lispSystem = "cl-sse-kit";
-              src = cl-sse-kit.packages.${ctx.system}.default;
-              lispAsdPath = [ "share/common-lisp/source/cl-sse-kit" ];
-            };
-            recursive = true;
-          };
+          forge = cl-nix-forge.lib.${ctx.system};
+          wrapForeign = drv: forge.fromDerivation { inherit drv; recursive = true; };
+          fromNixpkgsLisp = drv: forge.fromNixpkgsLisp { inherit drv; lispImplementation = "sbcl"; };
+          externalLispDependencies = map fromNixpkgsLisp [
+            ctx.pkgs.sbclPackages.alexandria
+            ctx.pkgs.sbclPackages.bordeaux-threads
+            ctx.pkgs.sbclPackages.global-vars
+            ctx.pkgs.sbclPackages.trivial-features
+            ctx.pkgs.sbclPackages.trivial-garbage
+          ];
+          clHttpMessageKit = wrapForeign cl-http-message-kit.packages.${ctx.system}.default;
+          clHttpTlsKit = wrapForeign cl-tls-kit.packages.${ctx.system}.default;
+          clHttpDeflateKit = wrapForeign cl-deflate-kit.packages.${ctx.system}.default;
+          clHpackCodecKit = wrapForeign cl-hpack-codec-kit.packages.${ctx.system}.default;
+          clCryptoKit = wrapForeign (forge.lispDerivation {
+            pname = "cl-crypto-kit";
+            version = "0.1.0";
+            lispSystem = "cl-crypto-kit";
+            src = cl-crypto-kit.outPath;
+            lispDependencies = externalLispDependencies;
+          });
+          clHttpKit = wrapForeign (forge.lispDerivation {
+            pname = "cl-http-kit";
+            version = "0.5.0";
+            lispSystems = [ "cl-http-kit/client" "cl-http-kit/tls" ];
+            src = cl-http-kit.outPath;
+            lispDependencies = [
+              clHttpMessageKit
+              clHpackCodecKit
+              cl-codec-kit.packages.${ctx.system}.cl-codec-kit
+              clHttpDeflateKit
+              clHttpTlsKit
+              clCryptoKit
+            ] ++ externalLispDependencies;
+          });
+          clSseKit = wrapForeign (forge.lispDerivation {
+            pname = "cl-sse-kit";
+            version = "1.1.0";
+            lispSystem = "cl-sse-kit";
+            src = cl-sse-kit.packages.${ctx.system}.default;
+            lispAsdPath = [ "share/common-lisp/source/cl-sse-kit" ];
+            lispDependencies = [
+              cl-codec-kit.packages.${ctx.system}.cl-codec-kit
+              clHttpMessageKit
+              clHpackCodecKit
+              cl-resilience-kit.packages.${ctx.system}.cl-resilience-kit
+              cl-boundary-kit.packages.${ctx.system}.cl-boundary-kit
+              cl-concurrent-kit.packages.${ctx.system}.cl-concurrent-kit
+              cl-date-kit.packages.${ctx.system}.cl-date-kit
+              cl-host-kit.packages.${ctx.system}.cl-host-kit
+            ] ++ externalLispDependencies;
+          });
         in
         [
-          cl-weave.packages.${ctx.system}.cl-weave
+          clHttpKit
+          clHttpMessageKit
+          clHttpTlsKit
           clSseKit
+          cl-codec-kit.packages.${ctx.system}.cl-codec-kit
+          cl-concurrent-kit.packages.${ctx.system}.cl-concurrent-kit
+          cl-json-kit.packages.${ctx.system}.cl-json-kit
         ];
+
+      lispCheckDependencies = ctx: [
+        cl-weave.packages.${ctx.system}.cl-weave
+        cl-boundary-kit.packages.${ctx.system}.cl-boundary-kit
+      ];
 
       timeoutSeconds = 240;
 
