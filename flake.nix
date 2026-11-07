@@ -239,7 +239,7 @@
             lispSystem = "cl-hpack-codec-kit";
             src = cl-hpack-codec-kit.outPath;
           };
-          clHttpKit = wrapForeign (forge.lispDerivation {
+          clHttpKit = forge.lispDerivation {
             pname = "cl-http-kit";
             version = "0.5.0";
             lispSystem = "cl-http-kit/client";
@@ -250,8 +250,8 @@
               cl-codec-kit.packages.${ctx.system}.cl-codec-kit
               clHttpDeflateKit
             ] ++ externalLispDependencies;
-          });
-          clSseKit = wrapForeign (forge.lispDerivation {
+          };
+          clSseKit = forge.lispDerivation {
             pname = "cl-sse-kit";
             version = "1.1.0";
             lispSystem = "cl-sse-kit";
@@ -267,7 +267,7 @@
               cl-date-kit.packages.${ctx.system}.cl-date-kit
               cl-host-kit.packages.${ctx.system}.cl-host-kit
             ] ++ externalLispDependencies;
-          });
+          };
         in
         [
           clHttpKit
