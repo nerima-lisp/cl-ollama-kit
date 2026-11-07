@@ -4,9 +4,12 @@ Ollama exposes an OpenAI-compatible API below `/v1`. Create a client with
 `ollama-kit:make-openai-client`; its default base URL is
 `http://localhost:11434/v1`.
 
+Replace `"model"` in the request examples with a model available through this
+endpoint.
+
 ## JSON requests
 
-Endpoint helpers accept a JSON object body:
+`openai-chat-completions` accepts a JSON object body:
 
 ```lisp
 (defparameter *openai*
@@ -21,7 +24,8 @@ Endpoint helpers accept a JSON object body:
 ;; => a decoded JSON object
 ```
 
-The JSON helpers map to these paths:
+`openai-models` lists models, and `openai-model` takes a model name. The other
+JSON request helpers take a JSON object body. The helpers map to these paths:
 
 | Helper | Path | Purpose |
 | --- | --- | --- |

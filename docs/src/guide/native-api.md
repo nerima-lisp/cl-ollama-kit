@@ -6,6 +6,9 @@ relative endpoint paths to that base URL.
 The examples assume `*ollama*` is the client created in [Getting
 started](../getting-started.md).
 
+Replace `"model"` in these examples with a model installed on the configured
+Ollama service.
+
 ## Generation, chat, and embeddings
 
 The main request pairs are:
@@ -90,7 +93,8 @@ the successful HTTP response object.
 `ollama-kit:web-search` sends a request to `/web_search` and
 `ollama-kit:web-fetch` sends a request to `/web_fetch`. Both return decoded
 JSON objects. `:max-results` is optional on `web-search` and must be between 1
-and 10. Pass `:api-key` when the service requires authentication.
+and 10. Configure the client with `:api-key` when the service requires
+authentication.
 
 ## Streaming
 
@@ -101,17 +105,7 @@ response synchronously. Each callback receives a decoded JSON object. Return
 The final non-empty NDJSON line is delivered at EOF even if it has no trailing
 newline.
 
-```lisp
-(ollama-kit:chat-stream
- *ollama*
- "model"
- (list (ollama-kit:make-message "user" "Write a haiku."))
- (lambda (event)
-   (format t "~S~%" event)))
-```
-
-The callback runs in the thread consuming the HTTP response. The streaming call
-consumes the response before it returns. Stream endpoint functions accept
+Callbacks run in the thread consuming the HTTP response. Stream endpoint functions accept
 per-call `:response-timeout`, `:idle-timeout`, and `:cancel-token` options in
 addition to `:timeout` and `:headers`. See the [conditions
 reference](../reference/conditions.md) for timeout, cancellation, and protocol

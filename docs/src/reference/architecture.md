@@ -1,35 +1,35 @@
 # Architecture reference
 
-`<code>cl-ollama-kit</code>` separates client configuration, HTTP execution, JSON decoding, and event parsing. It uses `<code>cl-http-kit</code>` directly and HTTP request and response message types from `<code>cl-http-message-kit</code>`.
+`cl-ollama-kit` separates client configuration, HTTP execution, JSON decoding, and event parsing. It uses `cl-http-kit` directly and HTTP request and response message types from `cl-http-message-kit`.
 
 ## Client and transport
 
-`<code>make-client</code>` creates a `<code>cl-http-kit</code>` client when the caller does not provide `<code>:http-client</code>`. The `<code>ollama-kit</code>` client owns that default HTTP client and `<code>close-client</code>` clears its connections. A caller-supplied HTTP client remains caller-owned.
+`make-client` creates a `cl-http-kit` client when the caller does not provide `:http-client`. The `ollama-kit` client owns that default HTTP client and `close-client` clears its connections. A caller-supplied HTTP client remains caller-owned.
 
-The default HTTP client speaks plain HTTP only. For HTTPS, the caller supplies a TLS-enabled `<code>http-kit/client:http-client</code>`. Non-loopback plain HTTP requires `<code>:allow-insecure-http t</code>`. The URL policy recognizes `<code>localhost</code>`, `<code>127.0.0.1</code>`, and `<code>::1</code>` as loopback hosts.
+The default HTTP client speaks plain HTTP only. For HTTPS, the caller supplies a TLS-enabled `http-kit/client:http-client`. Non-loopback plain HTTP requires `:allow-insecure-http t`. The URL policy recognizes `localhost`, `127.0.0.1`, and IPv6 loopback `::1` (written as `[::1]` in a URL).
 
-The client has three timeout settings. `<code>:timeout</code>` controls the HTTP request timeout. `<code>:response-timeout</code>` limits the time before response headers arrive. `<code>:idle-timeout</code>` limits the gap between streamed body chunks. The latter two apply to streaming calls. A stream call can also receive a caller-created `<code>http-kit/client</code>` cancellation token through `<code>:cancel-token</code>`.
+The client has three timeout settings. `:timeout` controls the HTTP request timeout. `:response-timeout` limits the time before response headers arrive. `:idle-timeout` limits the gap between streamed body chunks. The latter two apply to streaming calls. A stream call can also receive a caller-created `http-kit/client` cancellation token through `:cancel-token`.
 
 The client does not retry requests automatically. Retry, idempotency, and backoff policy belong to the application because several Ollama operations change server state.
 
 ## Request and response messages
 
-`<code>perform-request</code>` builds an HTTP request message and sends it through the configured HTTP client. `<code>request-json</code>` parses successful JSON responses and returns the decoded value and complete response message. `<code>request-raw</code>` passes through a string or octet vector body and returns a successful response message.
+`perform-request` builds an HTTP request message and sends it through the configured HTTP client. `request-json` parses successful JSON responses and returns the decoded value and complete response message. `request-raw` passes through a string or octet vector body and returns a successful response message.
 
-The response objects use `<code>http-message-kit</code>` types. The package no longer exports its own request or response model constructors, stream accessors, response-close functions, or response-scope macros.
+The response objects use `http-message-kit` types. The package no longer exports its own request or response model constructors, stream accessors, response-close functions, or response-scope macros.
 
-JSON request bodies are encoded as UTF-8 and checked against the client's maximum request length. Response input is checked against the maximum input length before JSON decoding. Invalid UTF-8, invalid JSON, and incompatible response shapes signal typed `<code>ollama-protocol-error</code>` conditions.
+JSON request bodies are encoded as UTF-8 and checked against the client's maximum request length. Response input is checked against the maximum input length before JSON decoding. Invalid UTF-8, invalid JSON, and incompatible response shapes signal typed `ollama-protocol-error` conditions.
 
-`<code>json-object</code>` and `<code>make-message</code>` construct JSON objects and native chat messages. `<code>+json-unspecified+</code>` distinguishes an omitted field from false, zero, an empty array, or JSON null.
+`json-object` and `make-message` construct JSON objects and native chat messages. `+json-unspecified+` distinguishes an omitted field from false, zero, an empty array, or JSON null.
 
 ## Streaming
 
-The exported stream API is synchronous and callback-based. `<code>call-with-ollama-stream</code>` parses NDJSON. `<code>call-with-openai-stream</code>` and `<code>call-with-anthropic-stream</code>` parse SSE with `<code>cl-sse-kit</code>`. Endpoint stream functions generated by the internal macros use the same callbacks.
+The exported stream API is synchronous and callback-based. `call-with-ollama-stream` parses NDJSON. `call-with-openai-stream` and `call-with-anthropic-stream` parse SSE with `cl-sse-kit`. Endpoint stream functions generated by the internal macros use the same callbacks.
 
-Each callback receives a decoded JSON event in wire order. Returning `<code>:stop</code>` cancels the request and returns normally. A callback error or non-local exit propagates. The library stops and joins its timeout monitor during unwinding, but has no explicit cancellation call for a non-local exit.
+Each callback receives a decoded JSON event in wire order. Returning `:stop` cancels the request and returns normally. A callback error or non-local exit propagates.
 
-NDJSON delivers a final non-empty line at EOF. An SSE event is delivered only after a blank line terminates it; an event left open at EOF is discarded. SSE `<code>[DONE]</code>` ends processing without invoking the callback for that event.
+NDJSON delivers a final non-empty line at EOF. An SSE event is delivered only after a blank line terminates it; an event left open at EOF is discarded. SSE `[DONE]` ends processing without invoking the callback for that event.
 
 ## Conditions
 
-Transport failures signal `<code>ollama-transport-error</code>`. Response and idle timeouts and caller cancellation signal its subclasses `<code>ollama-response-timeout</code>`, `<code>ollama-idle-timeout</code>`, and `<code>ollama-cancelled</code>`. Malformed or incompatible data signals `<code>ollama-protocol-error</code>`. Non-success HTTP statuses signal `<code>ollama-http-error</code>` or `<code>ollama-api-error</code>`. Stream error events preserve the decoded event and an NDJSON line number. See the [conditions reference](conditions.md).
+Transport failures signal `ollama-transport-error`. Response and idle timeouts and caller cancellation signal its subclasses `ollama-response-timeout`, `ollama-idle-timeout`, and `ollama-cancelled`. Malformed or incompatible data signals `ollama-protocol-error`. Non-success HTTP statuses signal `ollama-http-error` or `ollama-api-error`. Stream error events preserve the decoded event and an NDJSON line number. See the [conditions reference](conditions.md).

@@ -43,12 +43,16 @@ and idle timeouts apply to streams. Stream endpoints accept per-call
 `:response-timeout` and `:idle-timeout` overrides.
 
 The client sends an API key as a Bearer authorization value. Do not combine
-`:api-key` with an explicit Authorization header. The input and request size
-limits default to 16 MiB each.
+`:api-key` with an explicit Authorization header. `:max-input-length` limits
+response data and `:max-request-length` limits encoded request bodies. Both
+size limits default to 16 MiB.
 
 ## Make a native request
 
 Create chat messages with `ollama-kit:make-message`:
+
+Start the service at the configured URL and replace `"model"` with an
+installed model name.
 
 ```lisp
 (ollama-kit:chat
@@ -99,24 +103,16 @@ support, and pass it to `make-client`:
    :http-client *https-http-client*))
 ```
 
-The TLS client must trust the certificate presented by the service.
+The example uses the TLS system's default trust store. For a private CA, pass a
+`:tls-upgrade` created by `http-kit/tls:make-http-tls-upgrader` with trust
+anchors to `http-kit/client:make-http-client`.
 `cl-http-kit/tls` and its dependencies must be available through ASDF.
 
 Base URLs must use HTTP or HTTPS and cannot contain a query or fragment.
 Plain HTTP is allowed without `:allow-insecure-http` only for `localhost`,
-`127.0.0.1`, and IPv6 loopback `[::1]`. Set `:allow-insecure-http t` to use
-plain HTTP with any other host, including a private network address.
-
-## Run the tests
-
-The test suite does not require a live model service.
-
-```sh
-sbcl --script run-tests.lisp
-```
-
-For coverage, run `sbcl --script run-coverage.lisp` and inspect the generated
-HTML report.
+`127.0.0.1`, and IPv6 loopback `::1` (written as `[::1]` in a URL). Set
+`:allow-insecure-http t` to use plain HTTP with any other host, including a
+private network address.
 
 See [Migrating from 2.x](project/migrating-from-2.x.md) for the 3.0.0 public API
 changes.

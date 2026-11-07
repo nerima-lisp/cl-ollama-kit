@@ -1,6 +1,6 @@
 # Migrating from 2.x
 
-Version 3.0.0 removes the network-boundary and pull-stream APIs. It does not provide compatibility aliases. The names below were exported by the 2.x package in `main` and are no longer exported by the current package.
+Version 3.0.0 removes the network-boundary and pull-stream APIs. It does not provide compatibility aliases. The names below were exported by the 2.x package and are no longer exported by the current package.
 
 ## Client boundary
 

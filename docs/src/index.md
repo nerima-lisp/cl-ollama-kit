@@ -1,13 +1,13 @@
 # cl-ollama-kit documentation
 
-`<code>cl-ollama-kit</code>` is a Common Lisp client for Ollama's native API and its OpenAI-compatible and Anthropic-compatible endpoints. It uses `<code>cl-http-kit</code>` to send requests and `<code>cl-http-message-kit</code>` for HTTP request and response messages.
+`cl-ollama-kit` is a Common Lisp client for Ollama's native API and its OpenAI-compatible and Anthropic-compatible endpoints. It uses `cl-http-kit` to send requests and `cl-http-message-kit` for HTTP request and response messages.
 
 ## Start here
 
 - [Getting started](getting-started.md) covers client construction and common options.
 - [Native API guide](guide/native-api.md) covers generation, chat, embeddings, model operations, blobs, and web search and fetch.
-- [OpenAI-compatible API guide](guide/openai-compatible-api.md) covers the `<code>/v1</code>` endpoints.
-- [Anthropic-compatible API guide](guide/anthropic-compatible-api.md) covers the `<code>/v1/messages</code>` endpoint.
+- [OpenAI-compatible API guide](guide/openai-compatible-api.md) covers the `/v1` endpoints.
+- [Anthropic-compatible API guide](guide/anthropic-compatible-api.md) covers the `/v1/messages` endpoint.
 
 ## Reference
 
@@ -22,4 +22,4 @@
 
 ## HTTP and TLS
 
-The default HTTP client speaks plain HTTP. For HTTPS, create an `<code>http-kit/client:http-client</code>` with TLS support and pass it to `<code>make-client</code>` using `<code>:http-client</code>`. Non-loopback plain HTTP requires `<code>:allow-insecure-http t</code>`. See the [API reference](reference/api.md#client-and-transport) for the URL rules and the HTTPS call shape.
+The default HTTP client speaks plain HTTP. For HTTPS, create an `http-kit/client:http-client` with TLS support and pass it to `make-client` using `:http-client`. Non-loopback plain HTTP requires `:allow-insecure-http t`. See the [API reference](reference/api.md#client-and-transport) for the URL rules and the HTTPS call shape.

@@ -12,6 +12,9 @@ reference.
 Load the ASDF system, create a client, and send a chat request to the default
 local endpoint:
 
+Start the local Ollama service and replace `"model"` with the name of an
+installed model before running the request.
+
 ```lisp
 (asdf:load-system "cl-ollama-kit")
 (defparameter *ollama* (ollama-kit:make-client))
@@ -64,10 +67,6 @@ HTML report to a temporary directory unless
 `CL_OLLAMA_KIT_COVERAGE_DIRECTORY` is set.
 
 ## Contributing
-
-Keep public documentation concise and put detailed API material under
-`docs/src/`. Follow the repository's contribution and documentation standards
-when proposing changes.
 
 ## Support
 

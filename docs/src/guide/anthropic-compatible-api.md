@@ -4,6 +4,9 @@ Ollama exposes an Anthropic-compatible Messages API below `/v1/messages`.
 Create a client with `ollama-kit:make-anthropic-client`; its default base URL
 is `http://localhost:11434/v1`.
 
+Replace `"model"` in the request examples with a model available through this
+endpoint.
+
 ## Messages requests
 
 The helper accepts a JSON object body. This allows fields for models, messages,
@@ -49,8 +52,7 @@ callback to cancel the active request and complete normally.
 ```
 
 Anthropic-compatible streams use Server-Sent Events parsed by `cl-sse-kit`.
-An event must end with a blank line before EOF to be delivered. The streaming
-call consumes the response before it returns. Stream calls accept
+An event must end with a blank line before EOF to be delivered. Stream calls accept
 per-call `:timeout`, `:response-timeout`, `:idle-timeout`, `:headers`, and
 `:cancel-token` options.
 

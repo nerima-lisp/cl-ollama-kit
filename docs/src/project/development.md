@@ -1,6 +1,6 @@
 # Development
 
-The repository is an ASDF system with a Nix development environment. The client uses `<code>cl-http-kit</code>` directly; tests provide HTTP clients and responses without requiring a running Ollama service.
+The repository is an ASDF system with a Nix development environment. The client uses `cl-http-kit` directly; tests provide HTTP clients and responses without requiring a running Ollama service.
 
 ## Source layout
 
@@ -30,7 +30,7 @@ t/
   *.lisp                unit, contract, edge-case, and coverage tests
 ```
 
-The system definition in `<code>cl-ollama-kit.asd</code>` defines load order and test components. Native endpoint declarations use internal macros in `<code>src/native-macros.lisp</code>`; those macros are not exported API. Their generated functions call the shared validation, transport, and stream layers.
+The system definition in `cl-ollama-kit.asd` defines load order and test components. Native endpoint declarations use internal macros in `src/native-macros.lisp`; those macros are not exported API. Their generated functions call the shared validation, transport, and stream layers.
 
 ## Test commands
 
@@ -46,7 +46,7 @@ Run coverage with:
 sbcl --script run-coverage.lisp
 ```
 
-The coverage script writes its report to a temporary directory by default. Set `<code>CL_OLLAMA_KIT_COVERAGE_DIRECTORY</code>` to choose another directory.
+The coverage script writes its report to a temporary directory by default. Set `CL_OLLAMA_KIT_COVERAGE_DIRECTORY` to choose another directory.
 
 ## Nix checks
 
@@ -71,4 +71,4 @@ Build the site from the repository root with strict link checking. The explicit 
 nix run nixpkgs#mkdocs -- build -f docs/mkdocs.yml -d /tmp/cl-ollama-kit-docs-site --strict
 ```
 
-Keep the root README as a concise entry point, API details under `<code>docs/src/reference/</code>`, usage instructions under `<code>docs/src/guide/</code>`, and project process under `<code>docs/src/project/</code>`. Use package-qualified names in examples and relative Markdown links within the docs tree.
+Keep the root README as a concise entry point, API details under `docs/src/reference/`, usage instructions under `docs/src/guide/`, and project process under `docs/src/project/`. Use package-qualified names in examples and relative Markdown links within the docs tree.
