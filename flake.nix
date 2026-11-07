@@ -220,9 +220,20 @@
             ctx.pkgs.sbclPackages.trivial-features
             ctx.pkgs.sbclPackages.trivial-garbage
           ];
-          clHttpMessageKit = wrapForeign cl-http-message-kit.packages.${ctx.system}.default;
+          clHttpMessageKit = forge.lispDerivation {
+            pname = "cl-http-message-kit";
+            version = "2.0.1";
+            lispSystem = "cl-http-message-kit";
+            src = cl-http-message-kit.outPath;
+            lispDependencies = [ clHpackCodecKit ];
+          };
           clHttpTlsKit = wrapForeign cl-tls-kit.packages.${ctx.system}.default;
-          clHttpDeflateKit = wrapForeign cl-deflate-kit.packages.${ctx.system}.default;
+          clHttpDeflateKit = forge.lispDerivation {
+            pname = "cl-deflate-kit";
+            version = "0.4.0";
+            lispSystem = "cl-deflate-kit";
+            src = cl-deflate-kit.outPath;
+          };
           clHpackCodecKit = forge.lispDerivation {
             pname = "cl-hpack-codec-kit";
             version = "1.1.1";
