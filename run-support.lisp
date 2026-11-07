@@ -34,15 +34,17 @@
     (remove-duplicates directories :test #'equal)))
 
 (defun configure-local-source-registry (root &key include-test-dependencies)
-  (let ((systems
-         (append
-          '("cl-boundary-kit" "cl-codec-kit" "cl-concurrent-kit" "cl-json-kit")
-          (when include-test-dependencies
-            '("cl-weave" "cl-sse-kit")))))
-    (asdf:initialize-source-registry
-     `(:source-registry (:directory ,root)
-                        ,@(mapcar
-                           (lambda (directory)
-                             `(:directory ,directory))
-                           (local-system-directories root systems))
-                        :inherit-configuration))))
+  ;; Nix supplies the pinned dependency registry; keep sibling discovery for standalone runs.
+  (unless (uiop:getenv "CL_SOURCE_REGISTRY")
+    (let ((systems
+           (append
+            '("cl-boundary-kit" "cl-codec-kit" "cl-concurrent-kit" "cl-json-kit")
+            (when include-test-dependencies
+              '("cl-weave" "cl-sse-kit")))))
+      (asdf:initialize-source-registry
+       `(:source-registry (:directory ,root)
+                          ,@(mapcar
+                             (lambda (directory)
+                               `(:directory ,directory))
+                             (local-system-directories root systems))
+                          :inherit-configuration)))))
