@@ -90,13 +90,12 @@
                               allow-insecure-http)
     (let* ((normalized-headers (%normalize-headers headers))
            (normalized-base-url (%trim-base-url base-url)))
-      (progn
-        (%validate-base-url normalized-base-url allow-insecure-http)
-        (when (and (null http-client)
-                   (eq (%url-scheme normalized-base-url) :https))
-          (error 'ollama-argument-error
-                 :message
-                 "HTTPS requires a TLS-configured HTTP client; pass it with :HTTP-CLIENT.")))
+      (%validate-base-url normalized-base-url allow-insecure-http)
+      (when (and (null http-client)
+                 (eq (%url-scheme normalized-base-url) :https))
+        (error 'ollama-argument-error
+               :message
+               "HTTPS requires a TLS-configured HTTP client; pass it with :HTTP-CLIENT."))
       (let* ((with-auth (%client-headers-with-auth normalized-headers api-key))
              (owned-http-client-p (null http-client))
              (http-client (or http-client
