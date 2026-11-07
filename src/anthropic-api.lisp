@@ -16,8 +16,6 @@ as ANTHROPIC-VERSION, can be supplied through HEADERS."
                  (%keyword-option options
                                   :base-url
                                   +anthropic-default-base-url+)
-                 :network-boundary
-                 (%keyword-option options :network-boundary nil)
                  :headers
                  (%anthropic-client-headers
                   (%keyword-option options :headers nil)

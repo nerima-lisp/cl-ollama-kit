@@ -5,8 +5,6 @@
   (%validate-keyword-options options +client-option-keys+)
   (make-client :base-url
                (%keyword-option options :base-url +openai-default-base-url+)
-               :network-boundary
-               (%keyword-option options :network-boundary nil)
                :headers
                (%keyword-option options :headers nil)
                :api-key

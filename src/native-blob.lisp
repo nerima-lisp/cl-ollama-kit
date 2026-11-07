@@ -32,41 +32,32 @@
                              &key
                              (timeout +timeout-unspecified+)
                              headers)
-  "Return true when DIGEST is present in Ollama's blob store.
-
-The HEAD response is always closed before this function returns."
-  (let ((response nil))
-    (unwind-protect
-        (progn
-          (setf response (perform-request client
-                                          :head
-                                          (%blob-path digest)
-                                          :timeout
-                                          timeout
-                                          :headers
-                                          headers))
-          (unless (http-response-p response)
-            (error 'ollama-protocol-error
-                   :message
-                   "Network boundary did not return an HTTP response."
-                   :detail
-                   response))
-          (cond
-            ((response-success-p response) t)
-            ((= (http-response-status response) 404) nil)
-            (t (%raise-http-error response client))))
-      (when (http-response-p response)
-        (%close-response-safely response)))))
+  "Return true when DIGEST is present in Ollama's blob store. A 404 returns NIL."
+  (let ((response (perform-request client
+                                   :head
+                                   (%blob-path digest)
+                                   :timeout
+                                   timeout
+                                   :headers
+                                   headers)))
+    (unless (http-response-p response)
+      (error 'ollama-protocol-error
+             :message
+             "HTTP client did not return an HTTP response."
+             :detail
+             response))
+    (let ((status (http-response-status response)))
+      (cond
+        ((and (integerp status) (<= 200 status 299)) t)
+        ((and (integerp status) (= status 404)) nil)
+        (t (%raise-http-error response client))))))
 
 (defun push-blob (client digest
                          body
                          &key
                          (timeout +timeout-unspecified+)
                          headers)
-  "Upload raw BODY to Ollama's blob store under DIGEST.
-
-The successful HTTP response is returned to the caller, which owns it and
-must eventually call CLOSE-HTTP-RESPONSE."
+  "Upload raw BODY to Ollama's blob store under DIGEST and return its response."
   (unless (or (stringp body) (%octet-vector-p body))
     (error 'ollama-argument-error
            :message

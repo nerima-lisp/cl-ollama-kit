@@ -42,7 +42,6 @@
                (:file "stream-framing")
                (:file "stream-parser")
                (:file "stream-core")
-               (:file "stream")
                (:file "native-macros")
                (:file "native-options")
                (:file "native-generation")

@@ -1,5 +1,11 @@
 (defpackage #:ollama-kit
   (:use #:cl)
+  (:import-from #:http-message-kit
+                #:make-http-request #:http-request-p
+                #:make-http-response #:http-response-p
+                #:http-response-body #:http-response-headers
+                #:http-response-status #:http-response-protocol-version
+                #:http-response-reason #:http-response-trailers)
   (:export
    ;; Client and transport boundary.
    #:+default-base-url+
@@ -10,7 +16,7 @@
    #:client-max-request-length #:client-api-key-p
    #:client-allow-insecure-http #:close-client
    #:perform-request #:request-json #:request-raw
-   #:with-http-response #:with-json-response #:with-ollama-continuations
+   #:with-ollama-continuations
    #:call-with-json
    ;; Conditions.
    #:ollama-error #:ollama-error-message
@@ -25,7 +31,7 @@
    ;; JSON and message helpers.
    #:+json-unspecified+ #:make-message #:json-object
 
-   ;; NDJSON streams and channel integration.
+   ;; Streaming callback errors.
    #:ollama-stream-error #:ollama-stream-error-event
    #:ollama-stream-error-line
    ;; Native API.

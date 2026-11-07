@@ -59,57 +59,8 @@
   (%validate-response-body-length body max-input-length)
   (%response-body-text body))
 
-(defun %binary-stream-p (stream)
-  (multiple-value-bind (subtype-p known-p)
-      (subtypep (stream-element-type stream) '(unsigned-byte 8))
-    (and known-p subtype-p)))
-
-(defun %read-binary-response-stream-string (stream max-input-length)
-  (let ((bytes
-         (make-array (min max-input-length 4096)
-                     :element-type
-                     '(unsigned-byte 8)
-                     :adjustable
-                     t
-                     :fill-pointer
-                     0)))
-    (loop for byte = (read-byte stream nil nil)
-          while byte
-          do (when (>= (length bytes) max-input-length)
-               (error 'ollama-protocol-error
-                      :message
-                      "HTTP response body exceeds the configured limit."
-                      :detail
-                      max-input-length)) (vector-push-extend byte bytes))
-    (%decode-utf8 bytes)))
-
-(defun %read-text-response-stream-string (stream max-input-length)
-  (with-output-to-string (output)
-    (let ((length 0))
-      (loop for character = (read-char stream nil nil)
-            while character
-            do (incf length (%utf8-character-octets character)) (when
-                                                                    (> length
-                                                                       max-input-length)
-                                                                  (error
-                                                                   'ollama-protocol-error
-                                                                   :message
-                                                                   "HTTP response body exceeds the configured limit."
-                                                                   :detail
-                                                                   max-input-length)) (write-char
-                                                                                       character
-                                                                                       output)))))
-
-(defun %read-response-stream-string (stream max-input-length)
-  (if (%binary-stream-p stream)
-      (%read-binary-response-stream-string stream max-input-length)
-      (%read-text-response-stream-string stream max-input-length)))
-
 (defun %response-body-string (response max-input-length)
-  (if (streamp (http-response-stream response))
-      (%read-response-stream-string (http-response-stream response)
-                                    max-input-length)
-      (%decode-response-body (http-response-body response) max-input-length)))
+  (%decode-response-body (http-response-body response) max-input-length))
 
 (defun %parse-json-text (text max-input-length &optional length-validated-p)
   (when
@@ -133,31 +84,15 @@
                                     :false-value
                                     json-kit:+json-false+
                                     :max-input-length
-                                    max-input-length)
+                                    max-input-length
+                                    :duplicate-key-policy
+                                    :error)
         (json-kit:json-kit-error (condition)
           (error 'ollama-protocol-error
                  :message
                  "HTTP response body is not valid JSON."
                  :detail
                  condition)))))
-
-(defun %response-input-stream (response &optional max-input-length)
-  (or (http-response-stream response)
-      (let ((body (http-response-body response)))
-        (cond
-          ((stringp body)
-           (make-string-input-stream
-            (%decode-response-body body max-input-length)))
-          ((%octet-vector-p body)
-           (make-string-input-stream
-            (%decode-response-body body max-input-length)))
-          ((null body) (make-string-input-stream ""))
-          (t
-           (error 'ollama-protocol-error
-                  :message
-                  "Streaming response body has an unsupported type."
-                  :detail
-                  body))))))
 
 (defun %http-error-data (body max-input-length)
   (handler-case (%parse-json-text body max-input-length)
@@ -201,7 +136,10 @@
 (defun %raise-http-error (response client)
   (let* ((status (http-response-status response))
          (body
-          (%response-body-string response (client-max-input-length client)))
+           (handler-case
+               (%response-body-string response
+                                      (client-max-input-length client))
+             (ollama-protocol-error () "")))
          (data (%http-error-data body (client-max-input-length client))))
     (%signal-http-error response status body data)))
 
@@ -209,7 +147,7 @@
   (unless (http-response-p response)
     (error 'ollama-protocol-error
            :message
-           "Network boundary did not return an HTTP response."
+           "HTTP client did not return an HTTP response."
            :detail
            response))
   (unless (response-success-p response)

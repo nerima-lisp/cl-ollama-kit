@@ -113,32 +113,37 @@
                         headers
                         content-type
                         accept)
-    (let ((request
-           (make-http-request :method
-                              method
-                              :url
-                              (%join-url (client-base-url client) path)
-                              :headers
-                              all-headers
-                              :body
-                              (when body-supplied-p
-                                body)
-                              :stream-p
-                              stream-p)))
+    (let* ((normalized-method (%normalize-method method))
+           (request-body
+             (when body-supplied-p
+               (if (stringp body)
+                   (cl-codec-kit:string-to-octets body :encoding :utf-8)
+                   body)))
+           (request
+             (make-http-request
+              :method
+              (if (symbolp normalized-method)
+                  (symbol-name normalized-method)
+                  normalized-method)
+              :uri
+              (%join-url (client-base-url client) path)
+              :headers
+              all-headers
+              :body
+              request-body)))
       (when (and (client-api-key-p client) authorization-override-p)
         (error 'ollama-argument-error
-               :message
-               "Do not override a configured API-KEY per request."))
+               :message "Do not override a configured API-KEY per request."))
       request)))
 
 (defun perform-request (client method path &rest options)
-  "Send a raw HTTP request through CLIENT's network boundary.
+  "Send a raw HTTP request using CLIENT's configured HTTP client.
 
-BODY is a string or octet vector when supplied.  The returned value is an
-OLLAMA-KIT:HTTP-RESPONSE.  JSON-aware callers should use REQUEST-JSON.
+BODY is a string or octet vector when supplied. The returned value is an
+HTTP-MESSAGE-KIT:HTTP-RESPONSE. JSON-aware callers should use REQUEST-JSON.
 
 When CONTENT-TYPE or ACCEPT is explicitly supplied, its value replaces any
-header with the same name.  NIL suppresses the default header."
+header with the same name. NIL suppresses the default header."
   (unless (client-p client)
     (error 'ollama-argument-error :message "CLIENT must be an Ollama client."))
   (%validate-keyword-options options
@@ -152,21 +157,79 @@ header with the same name.  NIL suppresses the default header."
                                         timeout
                                         headers
                                         content-type
-                                        accept) (%request-option-values options)
+                                        accept)
+      (%request-option-values options)
     (%validate-boolean stream-p "STREAM-P")
     (%validate-request-body body-supplied-p body)
     (%validate-request-body-length client body-supplied-p body)
-    (%send-network-request client
-                           (%make-network-request client
-                                                  method
-                                                  path
-                                                  body-supplied-p
-                                                  body
-                                                  stream-p
-                                                  headers
-                                                  content-type
-                                                  accept)
-                           (%request-timeout client timeout))))
+    (let* ((max-input-length (client-max-input-length client))
+           (response-body
+             (make-array 0
+                         :element-type '(unsigned-byte 8)
+                         :adjustable t
+                         :fill-pointer 0))
+           (response-status nil))
+      (labels ((append-response-chunk (chunk)
+                 (let* ((used (length response-body))
+                        (available (- max-input-length used))
+                        (accepted (min available (length chunk)))
+                        (new-size (+ used accepted))
+                        (capacity (array-dimension response-body 0)))
+                   (when (> new-size capacity)
+                     (let* ((growth (min 4096 (- max-input-length capacity)))
+                            (new-capacity
+                              (min max-input-length
+                                   (max new-size (+ capacity growth)))))
+                       (setf response-body
+                             (adjust-array response-body
+                                           new-capacity
+                                           :fill-pointer used))))
+                   (replace response-body chunk
+                            :start1 used
+                            :end1 new-size
+                            :end2 accepted)
+                   (setf (fill-pointer response-body) new-size)
+                   (> (length chunk) accepted)))
+               (response-with-body (response)
+                 (make-http-response
+                  :protocol-version (http-response-protocol-version response)
+                  :status (http-response-status response)
+                  :reason (http-response-reason response)
+                  :headers (http-response-headers response)
+                  :trailers (http-response-trailers response)
+                  :body response-body)))
+        (let* ((request (%make-network-request client
+                                               method
+                                               path
+                                               body-supplied-p
+                                               body
+                                               stream-p
+                                               headers
+                                               content-type
+                                               accept))
+               (response
+                 (send-http-request
+                  client
+                  request
+                  :timeout (%request-timeout client timeout)
+                  :collect-body-p nil
+                  :on-response-headers
+                  (lambda (status response-headers)
+                    (declare (ignore response-headers))
+                    (setf response-status status))
+                  :on-body-chunk
+                  (lambda (chunk)
+                    (let ((overflow-p (append-response-chunk chunk)))
+                      (when
+                          (and overflow-p
+                               (or (null response-status)
+                                   (<= 200 response-status 299)))
+                        (error 'ollama-protocol-error
+                               :message
+                               "HTTP response body exceeds the configured limit."
+                               :detail
+                               max-input-length))))))
+          (response-with-body response)))))))
 
 (defun %perform-request-with-optional-body (client method
                                                    path

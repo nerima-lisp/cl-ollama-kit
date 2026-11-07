@@ -68,7 +68,6 @@ become dynamically interned keywords.")
                    (&key base-url
                          http-client
                          owned-http-client-p
-                         network-boundary
                          headers
                          timeout
                          response-timeout
@@ -81,7 +80,6 @@ become dynamically interned keywords.")
   (base-url +default-base-url+ :type string)
   http-client
   (owned-http-client-p nil :type boolean)
-  network-boundary
   headers
   timeout
   (response-timeout 300)
@@ -98,46 +96,3 @@ become dynamically interned keywords.")
 (defparameter +timeout-unspecified+
   (gensym "TIMEOUT-UNSPECIFIED-"))
 
-(defstruct
-    (http-request
-     (:constructor %make-http-request (&key method url headers body stream-p)))
-  "An opaque, transport-independent HTTP request."
-  method
-  (url "" :type string)
-  headers
-  body
-  stream-p)
-
-(defstruct
-    (http-response
-     (:constructor %make-http-response
-                   (&key status headers body stream close-function)))
-  "A response returned by a CL-BOUNDARY-KIT network boundary.
-
-BODY is normally a string or an octet vector.  STREAM is used for a response
-whose body must be consumed incrementally."
-  status
-  headers
-  body
-  stream
-  close-function)
-
-(defstruct
-    (ollama-stream
-     (:constructor %make-ollama-stream
-                   (&key stream
-                         response
-                         close-function
-                         wire-format
-                         max-line-length)))
-  stream
-  response
-  close-function
-  (wire-format :ndjson)
-  (closed-p nil)
-  (max-line-length 16777216)
-  (line-number 0))
-
-(defparameter +max-sse-event-lines+
-  65536
-  "Maximum number of wire lines allowed in one pending SSE event.")
