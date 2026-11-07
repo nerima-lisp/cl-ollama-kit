@@ -265,10 +265,10 @@
                                                                    :json))))))
                  (and (not (coverage-tree-contains-symbol-p expansion 'funcall))
                       (coverage-tree-contains-symbol-p expansion 'call-with-ollama-stream)
-                      (coverage-tree-contains-symbol-p expansion 'event-function)
-                      (coverage-tree-contains-symbol-p expansion 'response-timeout)
-                      (coverage-tree-contains-symbol-p expansion 'idle-timeout)
-                      (coverage-tree-contains-symbol-p expansion 'cancel-token))))
+                      (coverage-tree-contains-symbol-p expansion 'ollama-kit::event-function)
+                      (coverage-tree-contains-symbol-p expansion 'ollama-kit::response-timeout)
+                      (coverage-tree-contains-symbol-p expansion 'ollama-kit::idle-timeout)
+                      (coverage-tree-contains-symbol-p expansion 'ollama-kit::cancel-token))))
               (assert
                (not
                 (coverage-tree-contains-symbol-p
