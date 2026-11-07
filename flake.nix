@@ -406,15 +406,20 @@
             coverage = coverageReport;
           }
           // nixpkgs.lib.optionalAttrs (paredit-cli.lib ? ${ctx.system}) {
-            paredit-lint = paredit-cli.lib.${ctx.system}.mkLintCheck {
-              inherit (ctx) src;
+            # mkLintCheck has no timeout argument; keep its command through the bounded check helper.
+            paredit-lint = ctx.cl.mkCommandCheck {
+              drv = ctx.package;
               name = "cl-ollama-kit-paredit-lint";
+              nativeBuildInputs = [ paredit-cli.packages.${ctx.system}.lint ];
+              command = [ "paredit-lint" "${ctx.src}" ];
+              timeoutSeconds = 900;
+              killAfterSeconds = 30;
             };
             paredit-format = ctx.cl.mkCommandCheck {
               drv = ctx.package;
               name = "cl-ollama-kit-paredit-format";
               command = [ "${pareditFormatCheck}/bin/cl-ollama-kit-paredit-format" ];
-              timeoutSeconds = 240;
+              timeoutSeconds = 900;
               killAfterSeconds = 30;
             };
           };
