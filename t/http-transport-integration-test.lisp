@@ -166,9 +166,11 @@
             (assert (= 503 (ollama-http-error-status condition)))
             (assert (http-message-kit:http-response-p
                      (ollama-http-error-response condition)))
-            (assert (equal expected-message
+            (assert (equal body
                            (ollama-http-error-body condition)))
             (when (eq error-kind :api)
+              (assert (equal expected-message
+                             (ollama-error-message condition)))
               (assert (hash-table-p
                        (ollama-api-error-data condition)))))
        (close-client client)
