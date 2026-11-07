@@ -1,6 +1,34 @@
 (in-package #:ollama-kit/test)
 
 (describe "HTTP validation contracts"
+          (it-each
+           (("request query" :request "http://example.test/api?limit=1" :accept)
+            ("request mixed-case HTTP scheme" :request "HtTp://example.test/api" :accept)
+            ("request mixed-case HTTPS scheme" :request "hTtPs://example.test/api" :accept)
+            ("base mixed-case HTTPS scheme" :base "hTtPs://example.test/api" :accept)
+            ("request tab" :request #\Tab :reject)
+            ("request newline" :request #\Newline :reject)
+            ("base tab" :base #\Tab :reject)
+            ("base newline" :base #\Newline :reject)
+            ("base dot-dot path segment" :base "https://example.test/api/../v1" :reject)
+            ("base encoded dot segment" :base "https://example.test/api/%2E/v1" :reject))
+           "handles ~A URL validation"
+           (name endpoint input outcome)
+           (let* ((url (if (characterp input)
+                           (format nil "~A://example.test/api~Cpath"
+                                   (if (eq endpoint :base) "https" "http")
+                                   input)
+                         input))
+                  (validator (if (eq endpoint :base)
+                                 (lambda ()
+                                   (ollama-kit::%validate-base-url url nil))
+                               (lambda ()
+                                 (ollama-kit::%validate-http-request-url url)))))
+             (if (eq outcome :accept)
+                 (assert (equal url (funcall validator)))
+               (assert (%signals-p
+                        (find-symbol "OLLAMA-ARGUMENT-ERROR" :ollama-kit)
+                        validator)))))
           (it "normalizes methods and headers while rejecting unsafe values"
               (assert (eq :post (ollama-kit::%normalize-method :post)))
               (assert (eq :post (ollama-kit::%normalize-method 'post)))

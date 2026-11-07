@@ -12,53 +12,45 @@
                :message
                "BASE-URL must contain more than URL separators."))))
 
-(defun %validate-http-url-components
-    (url control-message fragment-message scheme-message authority-message
-     dot-segment-message &optional after-fragment-check)
+(defun %validate-http-url-components (url subject)
   (when (%url-contains-control-p url)
-    (error (quote ollama-argument-error) :message control-message))
+    (error 'ollama-argument-error
+           :message
+           (format nil "~A must not contain controls or whitespace." subject)))
   (when (find #\# url)
-    (error (quote ollama-argument-error) :message fragment-message))
-  (when after-fragment-check
-    (funcall after-fragment-check))
+    (error 'ollama-argument-error
+           :message
+           (format nil "~A must not contain a URL fragment." subject)))
   (let ((scheme (%url-scheme url)))
     (unless scheme
-      (error (quote ollama-argument-error) :message scheme-message))
+      (error 'ollama-argument-error
+             :message
+             (format nil "~A must use the HTTP or HTTPS scheme." subject)))
     (unless (%valid-host-authority-p (%url-authority url))
-      (error (quote ollama-argument-error) :message authority-message))
+      (error 'ollama-argument-error
+             :message
+             (format nil "~A must contain a valid host authority." subject)))
     (when (%url-has-dot-path-segment-p url)
-      (error (quote ollama-argument-error) :message dot-segment-message))
+      (error 'ollama-argument-error
+             :message
+             (format nil "~A must not contain dot path segments." subject)))
     scheme))
 
 (defun %validate-http-request-url (url)
-  (%validate-http-url-components
-   url
-   "HTTP request URLs must not contain controls or whitespace."
-   "HTTP request URLs must not contain a fragment."
-   "HTTP request URLs must use the HTTP or HTTPS scheme."
-   "HTTP request URLs must contain a valid host authority."
-   "HTTP request URLs must not contain dot path segments.")
+  (%validate-http-url-components url "HTTP request URLs")
   url)
 
 (defun %validate-base-url (base-url allow-insecure-http)
   (let ((scheme
-         (%validate-http-url-components
-          base-url
-          "BASE-URL must not contain controls or whitespace."
-          "BASE-URL must not contain a URL fragment."
-          "BASE-URL must use the HTTP or HTTPS scheme."
-          "BASE-URL must contain a valid host authority."
-          "BASE-URL must not contain dot path segments."
-          (lambda ()
-            (when (find #\? base-url)
-              (error (quote ollama-argument-error)
-                     :message
-                     "BASE-URL must not contain a query string."))))))
-    (when
-        (and (eq scheme :http)
-             (not allow-insecure-http)
-             (not (%base-url-loopback-p base-url)))
-      (error (quote ollama-argument-error)
+         (%validate-http-url-components base-url "BASE-URL")))
+    (when (find #\? base-url)
+      (error 'ollama-argument-error
+             :message
+             "BASE-URL must not contain a query string."))
+    (when (and (eq scheme :http)
+               (not allow-insecure-http)
+               (not (%base-url-loopback-p base-url)))
+      (error 'ollama-argument-error
              :message
              "Non-loopback HTTP requires ALLOW-INSECURE-HTTP."))
     base-url))
