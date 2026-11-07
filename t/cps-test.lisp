@@ -6,7 +6,10 @@
                     (success-response nil)
                     (failure-condition nil))
                 (call-with-json
-                 (queued-client (response-with-text "{\"ok\":true}"))
+                 (client-with-request-function
+                  (lambda (request &key timeout &allow-other-keys)
+                    (declare (ignore request timeout))
+                    (response-with-text "{\"ok\":true}")))
                  :get
                  "/version"
                  (lambda (value response)
@@ -14,14 +17,22 @@
                          success-response response))
                  (lambda (condition)
                    (setf failure-condition condition)))
-                (unwind-protect
-                    (with-soft-assertions (expect success-value :to-be t)
-                                          (expect failure-condition :to-be nil))
-                  (close-http-response success-response)))
+                (with-soft-assertions
+                    (expect success-value :to-be t)
+                    (expect failure-condition :to-be nil)
+                    (expect success-response
+                            :to-satisfy
+                            (lambda (response)
+                              (http-message-kit:http-response-p response)))
+                    (expect (http-message-kit:http-response-status success-response)
+                            :to-be
+                            200)))
               (let ((failure-condition nil))
                 (call-with-json
-                 (queued-client
-                  (response-with-text "{\"error\":\"missing\"}" :status 404))
+                 (client-with-request-function
+                  (lambda (request &key timeout &allow-other-keys)
+                    (declare (ignore request timeout))
+                    (response-with-text "{\"error\":\"missing\"}" :status 404)))
                  :get
                  "/version"
                  (lambda (&rest values)
