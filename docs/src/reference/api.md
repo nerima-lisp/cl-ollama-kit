@@ -6,7 +6,7 @@ The symbols in this reference are exported from the `ollama-kit` package unless 
 
 ### Base URL constants
 
-`+default-base-url+` is the native API default, `http://localhost:11434/api`. `+openai-default-base-url+` and `+anthropic-default-base-url+` both resolve to `http://localhost:11434/v1`, the default base URL for both compatibility constructors. `+anthropic-default-base-url+` names the Anthropic-specific default.
+`+default-base-url+` is the native API default, `http://localhost:11434/api`. Both compatibility constructors default to `http://localhost:11434/v1`. `+anthropic-default-base-url+` is the exported Anthropic-specific constant.
 
 ### `make-client`
 
