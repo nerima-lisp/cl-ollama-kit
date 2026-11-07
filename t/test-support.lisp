@@ -18,8 +18,17 @@
          :http-client
          (http-kit/client:make-http-client
           :transport-function
-          (lambda (request &key timeout &allow-other-keys)
-            (funcall request-function request :timeout timeout)))
+          (lambda (request &key timeout on-response-headers on-body-chunk &allow-other-keys)
+            (let* ((http-response
+                     (funcall request-function request :timeout timeout))
+                   (body (http-message-kit:http-response-body http-response)))
+              (when on-response-headers
+                (funcall on-response-headers
+                         (http-message-kit:http-response-status http-response)
+                         (http-message-kit:http-response-headers http-response)))
+              (when (and on-body-chunk (plusp (array-total-size body)))
+                (funcall on-body-chunk body))
+              http-response)))
          options))
 
 (defconstant +loopback-http-max-header-bytes+ 65536)
