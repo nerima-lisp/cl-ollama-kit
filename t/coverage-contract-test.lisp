@@ -349,51 +349,86 @@ this function returns.")))
                         :stream
                         :json))
                  nil)))
-              (assert
-               (let ((expansion
-                      (macroexpand-1
-                       '(ollama-kit::define-native-stream-pair
-                         generated-endpoint
-                         generated-stream
-                         (client &key timeout headers)
-                         :post
-                         "/generate"
-                         (lambda (stream-p)
-                           (if stream-p
-                               :stream
-                               :json))))))
-                 (and (not (coverage-tree-contains-symbol-p expansion 'funcall))
-                      (coverage-tree-contains-symbol-p expansion
-                                                       'call-with-ollama-stream)
-                      (coverage-tree-contains-symbol-p expansion
-                                                       'ollama-kit::event-function)
-                      (coverage-tree-contains-symbol-p expansion
-                                                       'ollama-kit::response-timeout)
-                      (coverage-tree-contains-symbol-p expansion
-                                                       'ollama-kit::idle-timeout)
-                      (coverage-tree-contains-symbol-p expansion
-                                                       'ollama-kit::cancel-token))))
-              (assert
-               (not
-                (coverage-tree-contains-symbol-p
-                 (macroexpand-1
-                  '(ollama-kit::define-native-stream-pair generated-endpoint
-                                                          generated-stream
-                                                          (client &key
-                                                                  timeout
-                                                                  headers)
-                                                          :post
-                                                          "/generate"
-                                                          (lambda (stream-p)
-                                                            (if stream-p
-                                                                :stream
-                                                                :json))
-                                                          :stream-body-form
-                                                          (lambda (stream-p)
-                                                            (if stream-p
-                                                                :explicit-stream
-                                                                :explicit-json))))
-                 'funcall)))
+              (let* ((lambda-list '(client &key timeout headers))
+                     (body-form
+                       '(lambda (stream-p)
+                          (ollama-kit::%json-object
+                           (cons "body-mode" (if stream-p "stream" "json")))))
+                     (form (list 'ollama-kit::define-native-stream-pair
+                                 'generated-endpoint
+                                 'generated-stream
+                                 lambda-list
+                                 :post
+                                 "/generate"
+                                 body-form))
+                     (expansion (macroexpand-1 form))
+                     (json-definition (second expansion))
+                     (stream-definition (third expansion)))
+                (assert (eq 'progn (first expansion)))
+                (assert (eq 'defun (first json-definition)))
+                (assert (eq 'generated-endpoint (second json-definition)))
+                (assert (equal lambda-list (third json-definition)))
+                (assert (eq 'defun (first stream-definition)))
+                (assert (eq 'generated-stream (second stream-definition)))
+                (assert
+                 (equal '(client ollama-kit::event-function &key timeout headers
+                          (ollama-kit::response-timeout
+                           ollama-kit::+timeout-unspecified+)
+                          (ollama-kit::idle-timeout
+                           ollama-kit::+timeout-unspecified+)
+                          ollama-kit::cancel-token)
+                        (third stream-definition)))
+                (eval
+                  '(ollama-kit::define-native-stream-pair
+                    generated-endpoint
+                    generated-stream
+                    (client &key timeout headers)
+                    :post
+                    "/generate"
+                    (lambda (stream-p)
+                      (ollama-kit::%json-object
+                       (cons "body-mode" (if stream-p "stream" "json"))))))
+                (let* ((json-body (make-hash-table :test (quote equal)))
+                      (stream-body (make-hash-table :test (quote equal)))
+                      (stream-event (make-hash-table :test (quote equal)))
+                      (client
+                       (client-with-request-function
+                        (lambda (request &key timeout)
+                          (declare (ignore timeout))
+                          (let ((body (request-json-object request)))
+                            (if (equal "stream" (gethash "body-mode" body))
+                                (setf stream-body body)
+                                (setf json-body body)))
+                          (response-with-text (format nil "{\"event\":\"observed\"}~%"))))))
+                  (unwind-protect
+                       (progn
+                         (let ((json-result
+                                 (funcall (symbol-function 'generated-endpoint)
+                                          client
+                                          :timeout
+                                          5
+                                          :headers
+                                          nil)))
+                           (assert (equal "observed" (gethash "event" json-result))))
+                         (funcall (symbol-function 'generated-stream)
+                                  client
+                                  (lambda (event)
+                                    (setf stream-event event)
+                                    :stop)
+                                  :timeout
+                                  5
+                                  :headers
+                                  nil
+                                  :response-timeout
+                                  5
+                                  :idle-timeout
+                                  5
+                                  :cancel-token
+                                  (http-kit/client:make-http-cancellation-token))
+                         (assert (equal "json" (gethash "body-mode" json-body)))
+                         (assert (equal "stream" (gethash "body-mode" stream-body)))
+                         (assert (equal "observed" (gethash "event" stream-event))))
+                    (close-client client))))
               (dolist
                   (body-form
                    '(42 (quote not-a-lambda)
@@ -482,7 +517,21 @@ this function returns.")))
                           "/stream"))
                  (program-error (caught)
                    (setf condition caught)))
-               (assert (typep condition (quote program-error)))))))
+               (assert (typep condition (quote program-error))))))
+          (it-each
+           ((ollama-kit::define-openai-stream-endpoint
+             generated-openai-stream
+             (client body event-function &key timeout response-timeout idle-timeout headers cancel-token))
+            (ollama-kit::define-anthropic-stream-endpoint
+             generated-anthropic-stream
+             (client body event-function &key timeout response-timeout idle-timeout headers cancel-token)))
+           "expands ~A stream endpoint names and lambda lists"
+           (macro expected-name lambda-list)
+           (let ((expansion
+                   (macroexpand-1 (list macro expected-name lambda-list :post "/stream"))))
+             (assert (eq 'defun (first expansion)))
+             (assert (eq expected-name (second expansion)))
+             (assert (equal lambda-list (third expansion))))))
 
 (describe "coverage boundary contracts"
           (it "executes inline input, JSON, and native option helpers"
