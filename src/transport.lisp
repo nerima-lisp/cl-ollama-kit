@@ -89,25 +89,25 @@
                         accept)
     (let* ((normalized-method (%normalize-method method))
            (request-body
-             (when body-supplied-p
-               (if (stringp body)
-                   (cl-codec-kit:string-to-octets body :encoding :utf-8)
-                   body)))
+            (when body-supplied-p
+              (if (stringp body)
+                  (cl-codec-kit:string-to-octets body :encoding :utf-8)
+                  body)))
            (request
-             (make-http-request
-              :method
-              (if (symbolp normalized-method)
-                  (symbol-name normalized-method)
-                  normalized-method)
-              :uri
-              (%join-url (client-base-url client) path)
-              :headers
-              all-headers
-              :body
-              request-body)))
+            (make-http-request :method
+                               (if (symbolp normalized-method)
+                                   (symbol-name normalized-method)
+                                   normalized-method)
+                               :uri
+                               (%join-url (client-base-url client) path)
+                               :headers
+                               all-headers
+                               :body
+                               request-body)))
       (when (and (client-api-key-p client) authorization-override-p)
         (error 'ollama-argument-error
-               :message "Do not override a configured API-KEY per request."))
+               :message
+               "Do not override a configured API-KEY per request."))
       request)))
 
 (defun perform-request (client method path &rest options)
@@ -131,17 +131,19 @@ header with the same name. NIL suppresses the default header."
                                         timeout
                                         headers
                                         content-type
-                                        accept)
-      (%request-option-values options)
+                                        accept) (%request-option-values options)
     (%validate-boolean stream-p "STREAM-P")
     (%validate-request-body body-supplied-p body)
     (%validate-request-body-length client body-supplied-p body)
     (let* ((max-input-length (client-max-input-length client))
            (response-body
-             (make-array 0
-                         :element-type '(unsigned-byte 8)
-                         :adjustable t
-                         :fill-pointer 0))
+            (make-array 0
+                        :element-type
+                        '(unsigned-byte 8)
+                        :adjustable
+                        t
+                        :fill-pointer
+                        0))
            (response-status nil))
       (labels ((append-response-chunk (chunk)
                  (let* ((used (length response-body))
@@ -152,57 +154,69 @@ header with the same name. NIL suppresses the default header."
                    (when (> new-size capacity)
                      (let* ((growth (min 4096 (- max-input-length capacity)))
                             (new-capacity
-                              (min max-input-length
-                                   (max new-size (+ capacity growth)))))
-                       (setf response-body
-                             (adjust-array response-body
-                                           new-capacity
-                                           :fill-pointer used))))
+                             (min max-input-length
+                                  (max new-size (+ capacity growth)))))
+                       (setf response-body (adjust-array response-body
+                                                         new-capacity
+                                                         :fill-pointer
+                                                         used))))
                    (setf (fill-pointer response-body) new-size)
-                   (replace response-body chunk
-                            :start1 used
-                            :end1 new-size
-                            :end2 accepted)
+                   (replace response-body
+                            chunk
+                            :start1
+                            used
+                            :end1
+                            new-size
+                            :end2
+                            accepted)
                    (> (length chunk) accepted)))
                (response-with-body (response)
-                 (make-http-response
-                  :protocol-version (http-response-protocol-version response)
-                  :status (http-response-status response)
-                  :reason (http-response-reason response)
-                  :headers (http-response-headers response)
-                  :trailers (http-response-trailers response)
-                  :body response-body)))
-        (let* ((request (%make-network-request client
-                                               method
-                                               path
-                                               body-supplied-p
-                                               body
-                                               stream-p
-                                               headers
-                                               content-type
-                                               accept))
+                 (make-http-response :protocol-version
+                                     (http-response-protocol-version response)
+                                     :status
+                                     (http-response-status response)
+                                     :reason
+                                     (http-response-reason response)
+                                     :headers
+                                     (http-response-headers response)
+                                     :trailers
+                                     (http-response-trailers response)
+                                     :body
+                                     response-body)))
+        (let* ((request
+                (%make-network-request client
+                                       method
+                                       path
+                                       body-supplied-p
+                                       body
+                                       stream-p
+                                       headers
+                                       content-type
+                                       accept))
                (response
-                 (send-http-request
-                  client
-                  request
-                  :timeout (%request-timeout client timeout)
-                  :collect-body-p nil
-                  :on-response-headers
-                  (lambda (status response-headers)
-                    (declare (ignore response-headers))
-                    (setf response-status status))
-                  :on-body-chunk
-                  (lambda (chunk)
-                    (let ((overflow-p (append-response-chunk chunk)))
-                      (when
-                          (and overflow-p
-                               (or (null response-status)
-                                   (<= 200 response-status 299)))
-                        (error 'ollama-protocol-error
-                               :message
-                               "HTTP response body exceeds the configured limit."
-                               :detail
-                               max-input-length)))))))
+                (send-http-request client
+                                   request
+                                   :timeout
+                                   (%request-timeout client timeout)
+                                   :collect-body-p
+                                   nil
+                                   :on-response-headers
+                                   (lambda (status response-headers)
+                                     (declare (ignore response-headers))
+                                     (setf response-status status))
+                                   :on-body-chunk
+                                   (lambda (chunk)
+                                     (let ((overflow-p
+                                            (append-response-chunk chunk)))
+                                       (when
+                                           (and overflow-p
+                                                (or (null response-status)
+                                                    (<= 200 response-status 299)))
+                                         (error 'ollama-protocol-error
+                                                :message
+                                                "HTTP response body exceeds the configured limit."
+                                                :detail
+                                                max-input-length)))))))
           (response-with-body response))))))
 
 (defun %perform-request-with-optional-body (client method
@@ -221,53 +235,52 @@ header with the same name. NIL suppresses the default header."
             (list :body body))
           options)))
 
-(defun send-http-request
-    (client request &key
-                    (timeout +timeout-unspecified+)
-                    cancel-token
-                    (collect-body-p t)
-                    on-response-headers
-                    on-body-chunk
-                    (response-timeout +timeout-unspecified+)
-                    (idle-timeout +timeout-unspecified+))
+(defun send-http-request (client request
+                                 &key
+                                 (timeout +timeout-unspecified+)
+                                 cancel-token
+                                 (collect-body-p t)
+                                 on-response-headers
+                                 on-body-chunk
+                                 (response-timeout +timeout-unspecified+)
+                                 (idle-timeout +timeout-unspecified+))
   (unless (client-p client)
     (error 'ollama-argument-error :message "CLIENT must be an Ollama client."))
   (%validate-boolean collect-body-p "COLLECT-BODY-P")
   (when (and on-response-headers (not (functionp on-response-headers)))
     (error 'ollama-argument-error
-           :message "ON-RESPONSE-HEADERS must be a function."))
+           :message
+           "ON-RESPONSE-HEADERS must be a function."))
   (when (and on-body-chunk (not (functionp on-body-chunk)))
-    (error 'ollama-argument-error
-           :message "ON-BODY-CHUNK must be a function."))
-  (let* ((timeout (if (eq timeout +timeout-unspecified+)
-                      (client-timeout client)
-                      timeout))
+    (error 'ollama-argument-error :message "ON-BODY-CHUNK must be a function."))
+  (let* ((timeout
+          (if (eq timeout +timeout-unspecified+)
+              (client-timeout client)
+              timeout))
          (response-timeout
-           (if (eq response-timeout +timeout-unspecified+)
-               (client-response-timeout client)
-               response-timeout))
+          (if (eq response-timeout +timeout-unspecified+)
+              (client-response-timeout client)
+              response-timeout))
          (idle-timeout
-           (if (eq idle-timeout +timeout-unspecified+)
-               (client-idle-timeout client)
-               idle-timeout))
+          (if (eq idle-timeout +timeout-unspecified+)
+              (client-idle-timeout client)
+              idle-timeout))
          (http-client (client-http-client client))
          (cancel-token
-           (or cancel-token
-               (http-kit/client:make-http-cancellation-token)))
+          (or cancel-token (http-kit/client:make-http-cancellation-token)))
          (monitor-p (or response-timeout idle-timeout))
          (monitor-lock
-           (when monitor-p
-             (cl-concurrent-kit:make-lock
-              :name "cl-ollama-kit HTTP timeout monitor")))
+          (when monitor-p
+            (cl-concurrent-kit:make-lock :name
+                                         "cl-ollama-kit HTTP timeout monitor")))
          (monitor-condition
-           (when monitor-p
-             (cl-concurrent-kit:make-condition-variable
-              :name "cl-ollama-kit HTTP timeout monitor")))
+          (when monitor-p
+            (cl-concurrent-kit:make-condition-variable :name
+                                                       "cl-ollama-kit HTTP timeout monitor")))
          (response-deadline
-           (and response-timeout
-                (+ (get-internal-real-time)
-                   (ceiling (* response-timeout
-                               internal-time-units-per-second)))))
+          (and response-timeout
+               (+ (get-internal-real-time)
+                  (ceiling (* response-timeout internal-time-units-per-second)))))
          (idle-deadline nil)
          (headers-received-p nil)
          (monitor-stopped-p nil)
@@ -275,76 +288,92 @@ header with the same name. NIL suppresses the default header."
          (monitor-thread nil)
          (callback-condition nil)
          (send-condition nil)
-         (response nil))
+         (response nil)
+         (send-returned-p nil))
     (%validate-timeout timeout)
     (labels ((deadline-after (seconds)
                (+ (get-internal-real-time)
                   (ceiling (* seconds internal-time-units-per-second))))
              (monitor-timeouts ()
-               (loop
-                 (let ((stopped-p nil)
-                       (expired-kind nil))
-                   (cl-concurrent-kit:with-lock-held (monitor-lock)
-                     (setf stopped-p monitor-stopped-p)
-                     (unless stopped-p
-                       (let* ((deadline
-                                (if headers-received-p
-                                    idle-deadline
-                                    response-deadline))
-                              (remaining
-                                (and deadline
-                                     (/ (float (- deadline
-                                                  (get-internal-real-time))
-                                               1d0)
-                                        internal-time-units-per-second))))
-                         (if (and remaining (<= remaining 0))
-                             (setf expired-kind
-                                   (if headers-received-p :idle :response))
-                             (cl-concurrent-kit:condition-wait
-                              monitor-condition monitor-lock
-                              :timeout remaining)))))
-                   (when stopped-p
-                     (return))
-                   (when expired-kind
-                     (when (http-kit/client:http-client-cancel-request
-                            cancel-token)
+               (loop (let ((stopped-p nil)
+                           (expired-kind nil))
                        (cl-concurrent-kit:with-lock-held (monitor-lock)
-                         (setf monitor-timeout-kind expired-kind)))
-                     (return)))))
+                                                         (setf stopped-p monitor-stopped-p)
+                                                         (unless stopped-p
+                                                           (let* ((deadline
+                                                                   (if headers-received-p
+                                                                       idle-deadline
+                                                                       response-deadline))
+                                                                  (remaining
+                                                                   (and deadline
+                                                                        (/
+                                                                         (float
+                                                                          (-
+                                                                           deadline
+                                                                           (get-internal-real-time))
+                                                                          1d0)
+                                                                         internal-time-units-per-second))))
+                                                             (if (and remaining
+                                                                      (<=
+                                                                       remaining
+                                                                       0))
+                                                                 (setf expired-kind (if headers-received-p
+                                                                                        :idle
+                                                                                        :response))
+                                                                 (cl-concurrent-kit:condition-wait
+                                                                  monitor-condition
+                                                                  monitor-lock
+                                                                  :timeout
+                                                                  remaining)))))
+                       (when stopped-p
+                         (return))
+                       (when expired-kind
+                         (when
+                             (http-kit/client:http-client-cancel-request
+                              cancel-token)
+                           (cl-concurrent-kit:with-lock-held (monitor-lock)
+                                                             (setf monitor-timeout-kind expired-kind)))
+                         (return)))))
              (record-response-headers ()
                (when monitor-p
                  (cl-concurrent-kit:with-lock-held (monitor-lock)
-                   (setf headers-received-p t
-                         idle-deadline
-                         (and idle-timeout
-                              (deadline-after idle-timeout)))
-                   (cl-concurrent-kit:condition-notify monitor-condition))))
+                                                   (setf headers-received-p t
+                                                         idle-deadline (and
+                                                                        idle-timeout
+                                                                        (deadline-after
+                                                                         idle-timeout)))
+                                                   (cl-concurrent-kit:condition-notify
+                                                    monitor-condition))))
              (record-body-chunk ()
                (when monitor-p
                  (cl-concurrent-kit:with-lock-held (monitor-lock)
-                   (when headers-received-p
-                     (setf idle-deadline
-                           (and idle-timeout
-                                (deadline-after idle-timeout))))
-                   (cl-concurrent-kit:condition-notify monitor-condition))))
+                                                   (when headers-received-p
+                                                     (setf idle-deadline (and
+                                                                          idle-timeout
+                                                                          (deadline-after
+                                                                           idle-timeout))))
+                                                   (cl-concurrent-kit:condition-notify
+                                                    monitor-condition))))
              (call-callback (callback arguments)
                (when callback
                  (let ((returned-p nil))
                    (unwind-protect
-                        (prog1
-                            (handler-bind
-                                ((error
-                                   (lambda (condition)
-                                     (setf callback-condition condition))))
-                             (apply callback arguments))
-                          (setf returned-p t))
-                     (when returned-p
-                       (setf callback-condition nil))))))
+                       (prog1
+                         (handler-bind ((error
+                                         (lambda (condition)
+                                           (setf callback-condition condition))))
+                           (apply callback arguments))
+                         (setf returned-p t))
+                     (if returned-p
+                         (setf callback-condition nil)
+                         (http-kit/client:http-client-cancel-request
+                          cancel-token))))))
              (stop-monitor ()
                (when monitor-thread
                  (cl-concurrent-kit:with-lock-held (monitor-lock)
-                   (setf monitor-stopped-p t)
-                   (cl-concurrent-kit:condition-notify monitor-condition))
+                                                   (setf monitor-stopped-p t)
+                                                   (cl-concurrent-kit:condition-notify
+                                                    monitor-condition))
                  (cl-concurrent-kit:join-thread monitor-thread)))
              (response-header-callback ()
                (when (or monitor-p on-response-headers)
@@ -356,45 +385,59 @@ header with the same name. NIL suppresses the default header."
                  (lambda (chunk)
                    (record-body-chunk)
                    (call-callback on-body-chunk (list chunk))))))
-      (setf monitor-thread
-            (when monitor-p
-              (cl-concurrent-kit:make-thread
-               #'monitor-timeouts
-               :name "cl-ollama-kit HTTP timeout monitor")))
+      (setf monitor-thread (when monitor-p
+                             (cl-concurrent-kit:make-thread #'monitor-timeouts
+                                                            :name
+                                                            "cl-ollama-kit HTTP timeout monitor")))
       (unwind-protect
-           (handler-case
-               (setf response
-                     (http-kit/client:http-client-send
-                      http-client request
-                      :timeout timeout
-                      :cancel-token cancel-token
-                      :collect-body-p collect-body-p
-                      :on-response-headers (response-header-callback)
-                      :on-body-chunk (body-chunk-callback)))
-             (error (condition)
-               (setf send-condition condition)))
-        (stop-monitor))
+          (handler-case (progn
+                          (setf response (http-kit/client:http-client-send
+                                          http-client
+                                          request
+                                          :timeout
+                                          timeout
+                                          :cancel-token
+                                          cancel-token
+                                          :collect-body-p
+                                          collect-body-p
+                                          :on-response-headers
+                                          (response-header-callback)
+                                          :on-body-chunk
+                                          (body-chunk-callback)))
+                          (setf send-returned-p t))
+            (error (condition)
+              (setf send-condition condition)))
+        (unwind-protect (stop-monitor)
+          (unless send-returned-p
+            (http-kit/client:http-client-cancel-request cancel-token))))
       (cond
-        (callback-condition
-         (error callback-condition))
+        (callback-condition (error callback-condition))
         ((eq monitor-timeout-kind :response)
          (error 'ollama-response-timeout
-                :message "HTTP response headers were not received before the response timeout."
-                :cause send-condition))
+                :message
+                "HTTP response headers were not received before the response timeout."
+                :cause
+                send-condition))
         ((eq monitor-timeout-kind :idle)
          (error 'ollama-idle-timeout
-                :message "No HTTP body chunk arrived before the idle timeout."
-                :cause send-condition))
+                :message
+                "No HTTP body chunk arrived before the idle timeout."
+                :cause
+                send-condition))
         ((and send-condition
               (typep send-condition
                      'http-kit/client:http-client-request-cancelled))
          (error 'ollama-cancelled
-                :message "The HTTP request was cancelled by the caller."
-                :cause send-condition))
+                :message
+                "The HTTP request was cancelled by the caller."
+                :cause
+                send-condition))
         ((and send-condition (typep send-condition 'ollama-error))
          (error send-condition))
         (send-condition
          (error 'ollama-transport-error
-                :message "The HTTP client failed while sending a request."
-                :cause send-condition))
+                :message
+                "The HTTP client failed while sending a request."
+                :cause
+                send-condition))
         (t response)))))

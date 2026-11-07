@@ -403,4 +403,41 @@
                (when client
                  (close-client client))
                (when http-client
-                 (http-kit/client:http-client-clear-connections http-client))))))
+                 (http-kit/client:http-client-clear-connections http-client)))))
+          (it "cancels the request on a non-local body callback exit"
+              (let* ((body
+                      (cl-codec-kit:string-to-octets "chunk" :encoding :utf-8))
+                     (server
+                      (make-loopback-http-server :behavior
+                                                 :stalled-body
+                                                 :chunks
+                                                 (list body)))
+                     (client (%http-test-client server))
+                     (result nil))
+                (unwind-protect
+                    (progn
+                      (setf result (catch :non-local-body-callback-exit
+                                     (ollama-kit::send-http-request client
+                                                                    (http-message-kit:make-http-request
+                                                                     :method
+                                                                     "GET"
+                                                                     :uri
+                                                                     (loopback-http-server-url
+                                                                      server))
+                                                                    :timeout
+                                                                    1
+                                                                    :collect-body-p
+                                                                    nil
+                                                                    :on-body-chunk
+                                                                    (lambda
+                                                                        (chunk)
+                                                                      (declare (ignore
+                                                                                chunk))
+                                                                      (throw
+                                                                          :non-local-body-callback-exit
+                                                                        :escaped)))
+                                     :returned))
+                      (assert (eq :escaped result))
+                      (assert (loopback-http-server-await-eof server 1.5)))
+                  (close-client client)
+                  (%assert-loopback-server-cleaned server)))))
