@@ -3,32 +3,47 @@
 (describe "HTTP validation contracts"
           (it-each
            (("request query" :request "http://example.test/api?limit=1" :accept)
-            ("request mixed-case HTTP scheme" :request "HtTp://example.test/api" :accept)
-            ("request mixed-case HTTPS scheme" :request "hTtPs://example.test/api" :accept)
-            ("base mixed-case HTTPS scheme" :base "hTtPs://example.test/api" :accept)
+            ("request mixed-case HTTP scheme" :request
+                                              "HtTp://example.test/api"
+                                              :accept)
+            ("request mixed-case HTTPS scheme" :request
+                                               "hTtPs://example.test/api"
+                                               :accept)
+            ("base mixed-case HTTPS scheme" :base
+                                            "hTtPs://example.test/api"
+                                            :accept)
             ("request tab" :request #\Tab :reject)
             ("request newline" :request #\Newline :reject)
             ("base tab" :base #\Tab :reject)
             ("base newline" :base #\Newline :reject)
-            ("base dot-dot path segment" :base "https://example.test/api/../v1" :reject)
-            ("base encoded dot segment" :base "https://example.test/api/%2E/v1" :reject))
+            ("base dot-dot path segment" :base
+                                         "https://example.test/api/../v1"
+                                         :reject)
+            ("base encoded dot segment" :base
+                                        "https://example.test/api/%2E/v1"
+                                        :reject))
            "handles ~A URL validation"
            (name endpoint input outcome)
-           (let* ((url (if (characterp input)
-                           (format nil "~A://example.test/api~Cpath"
-                                   (if (eq endpoint :base) "https" "http")
-                                   input)
-                         input))
-                  (validator (if (eq endpoint :base)
-                                 (lambda ()
-                                   (ollama-kit::%validate-base-url url nil))
-                               (lambda ()
-                                 (ollama-kit::%validate-http-request-url url)))))
+           (let* ((url
+                   (if (characterp input)
+                       (format nil
+                               "~A://example.test/api~Cpath"
+                               (if (eq endpoint :base)
+                                   "https"
+                                   "http")
+                               input)
+                       input))
+                  (validator
+                   (if (eq endpoint :base)
+                       (lambda ()
+                         (ollama-kit::%validate-base-url url nil))
+                       (lambda ()
+                         (ollama-kit::%validate-http-request-url url)))))
              (if (eq outcome :accept)
                  (assert (equal url (funcall validator)))
-               (assert (%signals-p
-                        (find-symbol "OLLAMA-ARGUMENT-ERROR" :ollama-kit)
-                        validator)))))
+                 (assert
+                  (%signals-p (find-symbol "OLLAMA-ARGUMENT-ERROR" :ollama-kit)
+                              validator)))))
           (it "normalizes methods and headers while rejecting unsafe values"
               (assert (eq :post (ollama-kit::%normalize-method :post)))
               (assert (eq :post (ollama-kit::%normalize-method 'post)))
@@ -105,7 +120,9 @@
                              (lambda ()
                                (ollama-kit::%ensure-header nil "x-test" 7))))))
           (it "validates base URLs, paths, and configured client limits"
-              (let ((http-client (http-kit/client:make-http-client :default-timeout nil))) (assert
+              (let ((http-client
+                     (http-kit/client:make-http-client :default-timeout nil)))
+                (assert
                  (equal "http://localhost:11434/api"
                         (ollama-kit::%trim-base-url
                          "http://localhost:11434/api///")))
@@ -232,7 +249,9 @@
                    (%signals-p 'ollama-argument-error
                                (lambda ()
                                  (ollama-kit::%validate-request-path path)))))
-                (let ((default-client (make-client))) (unwind-protect (assert (ollama-kit:client-p default-client)) (close-client default-client)))
+                (let ((default-client (make-client)))
+                  (unwind-protect (assert (ollama-kit:client-p default-client))
+                    (close-client default-client)))
                 (let ((default-client (make-client :http-client http-client)))
                   (assert
                    (equal ollama-kit::+default-base-url+
@@ -244,52 +263,69 @@
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :http-client http-client :timeout
+                               (make-client :http-client
+                                            http-client
+                                            :timeout
                                             -1))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :http-client http-client :timeout
+                               (make-client :http-client
+                                            http-client
+                                            :timeout
                                             "1"))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :http-client http-client :allow-insecure-http
+                               (make-client :http-client
+                                            http-client
+                                            :allow-insecure-http
                                             1))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :http-client http-client :api-key
-                                            7))))
+                               (make-client :http-client http-client :api-key 7))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :http-client http-client :api-key
+                               (make-client :http-client
+                                            http-client
+                                            :api-key
                                             ""))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :http-client http-client :api-key
+                               (make-client :http-client
+                                            http-client
+                                            :api-key
                                             (format nil "bad~Ckey" #\Newline)))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :http-client http-client :max-input-length
+                               (make-client :http-client
+                                            http-client
+                                            :max-input-length
                                             0))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :http-client http-client :max-request-length
+                               (make-client :http-client
+                                            http-client
+                                            :max-request-length
                                             0))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :http-client http-client :api-key
+                               (make-client :http-client
+                                            http-client
+                                            :api-key
                                             "secret"
                                             :headers
                                             '(("authorization" . "Basic x"))))))
                 (let ((client
-                       (make-client :http-client http-client :base-url
+                       (make-client :http-client
+                                    http-client
+                                    :base-url
                                     "http://example.test/api"
                                     :api-key
                                     "secret"

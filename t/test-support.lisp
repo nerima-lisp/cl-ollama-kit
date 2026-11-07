@@ -32,36 +32,36 @@
          options))
 
 (defconstant +loopback-http-max-header-bytes+ 65536)
-  (defconstant +loopback-http-max-body-bytes+ 4194304)
-  (defconstant +loopback-http-thread-join-seconds+ 2.0)
+(defconstant +loopback-http-max-body-bytes+ 4194304)
+(defconstant +loopback-http-thread-join-seconds+ 2.0)
 
-  (defvar *loopback-http-servers* nil)
+(defvar *loopback-http-servers* nil)
 
-  (defstruct (loopback-http-server
-              (:constructor %make-loopback-http-server)
-              (:conc-name %loopback-http-server-))
-    listener
-    port
-    thread
-    stream
-    request
-    request-bytes
-    (request-count 0)
-    status
-    headers
-    body
-    chunks
-    chunk-delay
-    behavior
-    keep-alive-p
-    (eof-p nil)
-    (server-error nil)
-    (thread-joined-p nil)
-    (listener-closed-p nil)
-    (stream-closed-p nil)
-    (stop-requested-p nil)
-    (state-lock (sb-thread:make-mutex :name "loopback HTTP fixture state"))
-    (eof-semaphore (sb-thread:make-semaphore :count 0)))
+(defstruct (loopback-http-server
+            (:constructor %make-loopback-http-server)
+            (:conc-name %loopback-http-server-))
+  listener
+  port
+  thread
+  stream
+  request
+  request-bytes
+  (request-count 0)
+  status
+  headers
+  body
+  chunks
+  chunk-delay
+  behavior
+  keep-alive-p
+  (eof-p nil)
+  (server-error nil)
+  (thread-joined-p nil)
+  (listener-closed-p nil)
+  (stream-closed-p nil)
+  (stop-requested-p nil)
+  (state-lock (sb-thread:make-mutex :name "loopback HTTP fixture state"))
+  (eof-semaphore (sb-thread:make-semaphore :count 0)))
 
   (defun loopback-http-server-url (server)
     (format nil "http://127.0.0.1:~D" (%loopback-http-server-port server)))
