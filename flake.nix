@@ -212,12 +212,19 @@
         ctx:
         let
           forge = cl-nix-forge.lib.${ctx.system};
-          wrapForeign = drv: forge.fromDerivation {
-            inherit drv;
-            recursive = true;
-            lispDependencies = drv.ancestry.deps or [ ];
-          };
-          fromNixpkgsLisp = drv: forge.fromNixpkgsLisp { inherit drv; lispImplementation = "sbcl"; };
+          wrapForeign =
+            drv:
+            forge.fromDerivation {
+              inherit drv;
+              recursive = true;
+              lispDependencies = drv.ancestry.deps or [ ];
+            };
+          fromNixpkgsLisp =
+            drv:
+            forge.fromNixpkgsLisp {
+              inherit drv;
+              lispImplementation = "sbcl";
+            };
           externalLispDependencies = map fromNixpkgsLisp [
             ctx.pkgs.sbclPackages.alexandria
             ctx.pkgs.sbclPackages.bordeaux-threads
@@ -254,25 +261,29 @@
               clHpackCodecKit
               cl-codec-kit.packages.${ctx.system}.cl-codec-kit
               clHttpDeflateKit
-            ] ++ externalLispDependencies;
+            ]
+            ++ externalLispDependencies;
           };
-          clSseKit = wrapForeign (forge.lispDerivation {
-            pname = "cl-sse-kit";
-            version = "1.1.0";
-            lispSystem = "cl-sse-kit";
-            src = cl-sse-kit.packages.${ctx.system}.default;
-            lispAsdPath = [ "share/common-lisp/source/cl-sse-kit" ];
-            lispDependencies = [
-              cl-codec-kit.packages.${ctx.system}.cl-codec-kit
-              clHttpMessageKit
-              clHpackCodecKit
-              cl-resilience-kit.packages.${ctx.system}.cl-resilience-kit
-              cl-boundary-kit.packages.${ctx.system}.cl-boundary-kit
-              cl-concurrent-kit.packages.${ctx.system}.cl-concurrent-kit
-              cl-date-kit.packages.${ctx.system}.cl-date-kit
-              cl-host-kit.packages.${ctx.system}.cl-host-kit
-            ] ++ externalLispDependencies;
-          });
+          clSseKit = wrapForeign (
+            forge.lispDerivation {
+              pname = "cl-sse-kit";
+              version = "1.1.0";
+              lispSystem = "cl-sse-kit";
+              src = cl-sse-kit.packages.${ctx.system}.default;
+              lispAsdPath = [ "share/common-lisp/source/cl-sse-kit" ];
+              lispDependencies = [
+                cl-codec-kit.packages.${ctx.system}.cl-codec-kit
+                clHttpMessageKit
+                clHpackCodecKit
+                cl-resilience-kit.packages.${ctx.system}.cl-resilience-kit
+                cl-boundary-kit.packages.${ctx.system}.cl-boundary-kit
+                cl-concurrent-kit.packages.${ctx.system}.cl-concurrent-kit
+                cl-date-kit.packages.${ctx.system}.cl-date-kit
+                cl-host-kit.packages.${ctx.system}.cl-host-kit
+              ]
+              ++ externalLispDependencies;
+            }
+          );
         in
         [
           clHttpKit
@@ -288,7 +299,7 @@
         cl-boundary-kit.packages.${ctx.system}.cl-boundary-kit
       ];
 
-      timeoutSeconds = 240;
+      timeoutSeconds = 300;
 
       docs.root = ./docs;
 
@@ -411,7 +422,10 @@
               drv = ctx.package;
               name = "cl-ollama-kit-paredit-lint";
               nativeBuildInputs = [ paredit-cli.packages.${ctx.system}.lint ];
-              command = [ "paredit-lint" "${ctx.src}" ];
+              command = [
+                "paredit-lint"
+                "${ctx.src}"
+              ];
               timeoutSeconds = 900;
               killAfterSeconds = 30;
             };
@@ -423,6 +437,47 @@
               killAfterSeconds = 30;
             };
           };
+        };
+
+      overrideOutputs =
+        ctx:
+        let
+          docsTimeoutSeconds = 120;
+          treefmtTimeoutSeconds = 120;
+          docsSite = ctx.generated.packages.docs.overrideAttrs (oldAttrs: {
+            nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [ ctx.pkgs.coreutils ];
+            buildPhase =
+              builtins.replaceStrings
+                [ "mkdocs build --strict --config-file mkdocs.yml --site-dir \"$out\"" ]
+                [
+                  "timeout --kill-after=30s ${toString docsTimeoutSeconds}s mkdocs build --strict --config-file mkdocs.yml --site-dir \"$out\""
+                ]
+                oldAttrs.buildPhase;
+          });
+        in
+        {
+          packages.docs = docsSite;
+          checks.docs = ctx.generated.checks.docs.overrideAttrs (oldAttrs: {
+            site = docsSite;
+            nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [
+              ctx.pkgs.bash
+              ctx.pkgs.coreutils
+            ];
+            buildCommand = ''
+              timeout --kill-after=30s ${toString docsTimeoutSeconds}s \
+                ${ctx.pkgs.bash}/bin/bash -e -c ${ctx.pkgs.lib.escapeShellArg oldAttrs.buildCommand}
+            '';
+          });
+          checks.formatting = ctx.generated.checks.formatting.overrideAttrs (oldAttrs: {
+            nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [
+              ctx.pkgs.bash
+              ctx.pkgs.coreutils
+            ];
+            buildCommand = ''
+              timeout --kill-after=30s ${toString treefmtTimeoutSeconds}s \
+                ${ctx.pkgs.bash}/bin/bash -e -c ${ctx.pkgs.lib.escapeShellArg oldAttrs.buildCommand}
+            '';
+          });
         };
     };
 }
