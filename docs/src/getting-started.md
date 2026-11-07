@@ -1,17 +1,14 @@
 # Getting started
 
-This page takes a checkout from system loading to a first request. The examples
-use package-qualified exported symbols and assume that
-`application-network-boundary` is a boundary supplied by the application.
+Load the system through ASDF, create a client, and send requests to the local
+Ollama service. This guide uses exported, package-qualified symbols.
 
 ## Load the system
 
-Load `cl-ollama-kit` version 2.0.0 through ASDF. Its four runtime dependencies
-are declared by `cl-ollama-kit.asd`: `cl-boundary-kit`, `cl-codec-kit`,
-`cl-concurrent-kit`, and `cl-json-kit`.
-
-The test system additionally depends on `cl-weave` 1.3.0 for executable tests
-and coverage instrumentation; it is not part of the runtime dependency set.
+Load `cl-ollama-kit` through ASDF. Its runtime dependencies include
+`cl-http-kit/client`, `cl-http-message-kit`, `cl-sse-kit`, `cl-codec-kit`,
+`cl-concurrent-kit`, and `cl-json-kit`. TLS support is optional and is not a
+runtime dependency of `cl-ollama-kit`.
 
 ```lisp
 (asdf:load-system "cl-ollama-kit")
@@ -24,38 +21,34 @@ environment:
 nix develop
 ```
 
-The standalone test and coverage runners initialize a local ASDF source
-registry for this checkout and nearby `nerima-lisp` source checkouts when
-their `.asd` files are present. When loading the system from another REPL,
-make those systems discoverable through ASDF first; the Nix shell remains the
-source of truth for the pinned development environment.
+When loading the system from another REPL, make the checkout and its ASDF
+dependencies discoverable through ASDF first.
 
 ## Create a client
 
-`ollama-kit:make-client` requires a network boundary. The default native base
-URL is `http://localhost:11434/api`; pass `:base-url` when the service is
-located elsewhere.
+`ollama-kit:make-client` creates an HTTP client when `:http-client` is omitted.
+Its default base URL is `http://localhost:11434/api`.
 
 ```lisp
 (defparameter *ollama*
   (ollama-kit:make-client
-   :base-url "http://localhost:11434/api"
-   :network-boundary application-network-boundary))
+   :base-url "http://localhost:11434/api"))
 ```
 
-The client accepts `:headers`, `:timeout`, `:api-key`,
-`:max-input-length`, and `:max-request-length`. An API key is sent as a Bearer
-authorization value. Do not combine `:api-key` with an explicit Authorization
-header.
+Pass `:http-client` to use a caller-created `http-kit/client:http-client`.
+Client options also include `:headers`, `:api-key`, `:timeout`,
+`:response-timeout`, `:idle-timeout`, `:max-input-length`,
+`:max-request-length`, and `:allow-insecure-http`. The defaults for response
+and idle timeouts apply to streams. Stream endpoints accept per-call
+`:response-timeout` and `:idle-timeout` overrides.
 
-If a request omits `:timeout`, the client default is passed to the network
-boundary. An explicit `:timeout nil` disables that client default for the
-request. The boundary owns actual deadline enforcement and socket behavior;
-close a returned stream with `stream-close` when the application cancels it.
+The client sends an API key as a Bearer authorization value. Do not combine
+`:api-key` with an explicit Authorization header. The input and request size
+limits default to 16 MiB each.
 
 ## Make a native request
 
-Chat messages are JSON objects created with `ollama-kit:make-message`.
+Create chat messages with `ollama-kit:make-message`:
 
 ```lisp
 (ollama-kit:chat
@@ -70,44 +63,53 @@ dedicated helper. Its arguments are alternating key and value pairs.
 
 ## Consume a stream
 
-Native streams use NDJSON. `ollama-kit:stream-next` returns an event and a
-presence flag; at end of input it returns `nil, nil`. The caller owns the
-stream and should close it even when processing signals an error.
+Streaming calls read events synchronously and invoke a callback once for each
+decoded JSON object. The native API uses NDJSON. Return `:stop` from the
+callback to cancel the active request and complete normally.
 
 ```lisp
-(let ((stream (ollama-kit:chat-stream
-               *ollama* "model"
-               (list (ollama-kit:make-message "user" "Write a haiku.")))))
-  (unwind-protect
-       (loop
-         (multiple-value-bind (event present-p)
-             (ollama-kit:stream-next stream)
-           (unless present-p (return event))
-           (format t "~A~%" event)))
-    (ollama-kit:stream-close stream)))
+(ollama-kit:chat-stream
+ *ollama*
+ "model"
+ (list (ollama-kit:make-message "user" "Write a haiku."))
+ (lambda (event)
+   (format t "~S~%" event)))
 ```
 
-`ollama-kit:stream-events` collects events into a list, and
-`ollama-kit:stream-channel` bridges a stream to a `cl-concurrent-kit` channel
-and completion promise.
+The call consumes the response before it returns and closes the HTTP response.
+The lower-level `ollama-kit:call-with-ollama-stream` entry point accepts an
+HTTP method, relative path, callback, and request options. See the [conditions
+reference](reference/conditions.md) for stream and timeout errors.
 
-The client does not impose a separate read-idle timer or automatic retry
-policy. Configure those policies in the application-owned network boundary,
-where the concrete HTTP implementation can safely enforce them.
+## HTTPS and plain HTTP
 
-## Limits and transport security
+The default client speaks plain HTTP only. `make-client` signals
+`ollama-kit:ollama-argument-error` for an HTTPS base URL without `:http-client`.
+Load the optional `cl-http-kit/tls` system, create an HTTP client with TLS
+support, and pass it to `make-client`:
 
-The default maximum request length and response-input length are both 16 MiB.
-Set `:max-request-length` and `:max-input-length` to different positive
-limits when the application needs another policy.
+```lisp
+(asdf:load-system "cl-http-kit/tls")
+(defparameter *https-http-client*
+  (http-kit/client:make-http-client :default-timeout nil))
 
-Base URLs use HTTP or HTTPS and cannot contain a query or fragment. Plain HTTP
-to a non-loopback address requires `:allow-insecure-http t`; use HTTPS for
-remote services whenever possible.
+(defparameter *secure-ollama*
+  (ollama-kit:make-client
+   :base-url "https://localhost:11434/api"
+   :http-client *https-http-client*))
+```
+
+The TLS client must trust the certificate presented by the service.
+`cl-http-kit/tls` and its dependencies must be available through ASDF.
+
+Base URLs must use HTTP or HTTPS and cannot contain a query or fragment.
+Plain HTTP is allowed without `:allow-insecure-http` only for `localhost`,
+`127.0.0.1`, and IPv6 loopback `[::1]`. Set `:allow-insecure-http t` to use
+plain HTTP with any other host, including a private network address.
 
 ## Run the tests
 
-The test suite uses injected boundaries and does not need a live model service.
+The test suite does not require a live model service.
 
 ```sh
 sbcl --script run-tests.lisp
@@ -115,3 +117,6 @@ sbcl --script run-tests.lisp
 
 For coverage, run `sbcl --script run-coverage.lisp` and inspect the generated
 HTML report.
+
+See [Migrating from 2.x](project/migrating-from-2.x.md) for the 3.0.0 public API
+changes.

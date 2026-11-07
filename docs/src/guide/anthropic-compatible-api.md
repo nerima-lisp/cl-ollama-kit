@@ -6,16 +6,13 @@ is `http://localhost:11434/v1`.
 
 ## Messages requests
 
-The helper accepts a JSON object body. This keeps the compatibility surface
-open to model, messages, system prompts, tools, vision content, thinking, and
-new fields added by the server.
+The helper accepts a JSON object body. This allows fields for models, messages,
+system prompts, tools, and other values accepted by the service.
 
 ```lisp
 (defparameter *anthropic*
   (ollama-kit:make-anthropic-client
-   :api-key "local-development-key"
-   :headers '(("anthropic-version" . "2023-06-01"))
-   :network-boundary application-network-boundary))
+   :headers '(("anthropic-version" . "2023-06-01"))))
 
 (ollama-kit:anthropic-messages
  *anthropic*
@@ -27,43 +24,48 @@ new fields added by the server.
 ;; => a decoded JSON object
 ```
 
-`anthropic-messages` sends a `POST` request to `/messages`. The optional
-`:timeout` and `:headers` arguments apply to the individual request.
+`anthropic-messages` sends a `POST` request to `/messages`. The per-call
+`:timeout` and `:headers` arguments apply to an individual request.
+`make-anthropic-client` maps `:api-key` to an `X-API-KEY` header.
 
 ## Server-Sent Events
 
-Use `ollama-kit:anthropic-messages-stream` for the streaming form. It forces
-the request's `stream` field to true and decodes the response as
-`text/event-stream`.
+Use `ollama-kit:anthropic-messages-stream` for a streaming request. It forces
+the request's `stream` field to true and consumes the response synchronously.
+The event callback receives each decoded JSON object. Return `:stop` from the
+callback to cancel the active request and complete normally.
 
 ```lisp
-(let ((stream
-        (ollama-kit:anthropic-messages-stream
-         *anthropic*
-         (ollama-kit:json-object
-          "model" "model"
-          "max_tokens" 128
-          "messages"
-          (vector
-           (ollama-kit:make-message "user" "Stream a greeting."))))))
-  (unwind-protect
-       (ollama-kit:stream-events stream)
-    (ollama-kit:stream-close stream)))
+(ollama-kit:anthropic-messages-stream
+ *anthropic*
+ (ollama-kit:json-object
+  "model" "model"
+  "max_tokens" 128
+  "messages"
+  (vector
+   (ollama-kit:make-message "user" "Stream a greeting.")))
+ (lambda (event)
+   (format t "~S~%" event)))
 ```
 
-`ollama-kit:stream-next` returns each decoded SSE event and returns `nil, nil`
-at end of input or after `[DONE]`. The caller owns the returned stream;
-`stream-close` is idempotent and is the client-level cancellation operation.
+Anthropic-compatible streams use Server-Sent Events parsed by `cl-sse-kit`.
+An event must end with a blank line before EOF to be delivered. The HTTP
+response is closed before the streaming call returns. Stream calls accept
+per-call `:timeout`, `:response-timeout`, `:idle-timeout`, `:headers`, and
+`:cancel-token` options.
 
-## Authentication and boundaries
+## Authentication and transport
 
 Pass `:api-key` to `ollama-kit:make-anthropic-client` to add an `X-API-KEY`
 header. Supply `anthropic-version` or other compatibility headers through
-`:headers`. The network boundary remains application-owned, and the client
-does not select a socket or TLS implementation. Request limits, timeout
-behavior, plain-HTTP policy, and retry policy follow the same transport
-contract as the native and OpenAI-compatible clients.
+`:headers`.
 
-See the [API reference](../reference/api.md) for request and response
-ownership and the [conditions reference](../reference/conditions.md) for
-failures.
+The default client speaks plain HTTP. To use HTTPS, create a generic
+`ollama-kit:make-client` with an HTTPS `/v1` base URL and a TLS-enabled
+`:http-client` as described in [Getting started](../getting-started.md).
+The generic constructor sends `:api-key` as a Bearer value, so set
+`X-API-KEY` explicitly through `:headers` when using it for this API.
+Anthropic-compatible endpoint functions accept that client.
+
+See the [API reference](../reference/api.md) for request and response details
+and the [conditions reference](../reference/conditions.md) for failures.

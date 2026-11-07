@@ -1,18 +1,16 @@
 # OpenAI-compatible API guide
 
-Ollama exposes an OpenAI-compatible API below `/v1`. Create a separate client
-with `ollama-kit:make-openai-client`; its default base URL is
+Ollama exposes an OpenAI-compatible API below `/v1`. Create a client with
+`ollama-kit:make-openai-client`; its default base URL is
 `http://localhost:11434/v1`.
 
 ## JSON requests
 
-The endpoint helpers use the JSON transport directly and accept a JSON object
-body:
+Endpoint helpers accept a JSON object body:
 
 ```lisp
 (defparameter *openai*
-  (ollama-kit:make-openai-client
-   :network-boundary application-network-boundary))
+  (ollama-kit:make-openai-client))
 
 (ollama-kit:openai-chat-completions
  *openai*
@@ -23,57 +21,61 @@ body:
 ;; => a decoded JSON object
 ```
 
-The available JSON helpers map to these paths:
+The JSON helpers map to these paths:
 
 | Helper | Path | Purpose |
 | --- | --- | --- |
-| `openai-models` | `/models` | List models. |
-| `openai-model` | `/models/{model}` | Return one model description. |
-| `openai-chat-completions` | `/chat/completions` | Create a chat completion. |
-| `openai-completions` | `/completions` | Create a text completion. |
-| `openai-embeddings` | `/embeddings` | Create embeddings. |
-| `openai-responses` | `/responses` | Create an experimental response. |
-| `openai-images` | `/images/generations` | Generate images through the experimental endpoint. |
+| `ollama-kit:openai-models` | `/models` | List models. |
+| `ollama-kit:openai-model` | `/models/{model}` | Return one model description. |
+| `ollama-kit:openai-chat-completions` | `/chat/completions` | Create a chat completion. |
+| `ollama-kit:openai-completions` | `/completions` | Create a text completion. |
+| `ollama-kit:openai-embeddings` | `/embeddings` | Create embeddings. |
+| `ollama-kit:openai-responses` | `/responses` | Create an experimental response. |
+| `ollama-kit:openai-images` | `/images/generations` | Send a request to the experimental image endpoint. |
 
-`openai-images` forwards the JSON body to Ollama's experimental image
-generation endpoint. The documented fields are `model`, `prompt`, `size`,
-`response_format` (currently `b64_json`), `n`, `quality`, `style`, and `user`.
-The endpoint returns decoded JSON and does not have a streaming helper.
+`openai-images` forwards its JSON body and returns a decoded JSON object. It
+does not have a streaming helper.
 
 ## Server-Sent Events
 
-The streaming pairs are `ollama-kit:openai-chat-completions-stream`,
+The streaming helpers are `ollama-kit:openai-chat-completions-stream`,
 `ollama-kit:openai-completions-stream`, and
-`ollama-kit:openai-responses-stream`.
-
-They force the request's `stream` field to true and decode
-`text/event-stream`. `ollama-kit:stream-next` returns each decoded event and
-returns `nil, nil` after the `[DONE]` marker or end of input.
+`ollama-kit:openai-responses-stream`. Each takes a client, JSON request body,
+and event callback. It forces the request's `stream` field to true and
+consumes the response synchronously. The callback receives each decoded JSON
+object. Return `:stop` from the callback to cancel the active request and
+complete normally.
 
 ```lisp
-(let ((stream
-        (ollama-kit:openai-chat-completions-stream
-         *openai*
-         (ollama-kit:json-object
-          "model" "model"
-          "messages"
-          (vector (ollama-kit:make-message "user" "Stream a greeting."))))))
-  (unwind-protect
-       (ollama-kit:stream-events stream)
-    (ollama-kit:stream-close stream)))
+(ollama-kit:openai-chat-completions-stream
+ *openai*
+ (ollama-kit:json-object
+  "model" "model"
+  "messages"
+  (vector (ollama-kit:make-message "user" "Stream a greeting.")))
+ (lambda (event)
+   (format t "~S~%" event)))
 ```
 
-## Authentication and boundaries
+OpenAI-compatible streams use Server-Sent Events parsed by `cl-sse-kit`.
+An event must end with a blank line before EOF to be delivered. The final
+`[DONE]` data marker ends the stream without invoking the callback for that
+marker.
+
+## Authentication and transport
 
 Pass `:api-key` to `ollama-kit:make-openai-client` to add a Bearer
-Authorization value. The same request limits, timeout, headers, and
-plain-HTTP policy as the native client apply. The network boundary remains
-application-owned; this client does not select a socket or TLS implementation.
-Omitting `:timeout` uses the client default, while an explicit `:timeout nil`
-passes `NIL` through to the boundary. Stream cancellation is performed with
-`ollama-kit:stream-close`; deadline enforcement, read-idle timeouts, pooling,
-and retries remain boundary or application policy.
+Authorization value. The constructor also accepts `:headers`, `:timeout`,
+`:max-input-length`, `:max-request-length`, and `:allow-insecure-http`.
+Streaming calls accept per-call `:timeout`, `:response-timeout`,
+`:idle-timeout`, `:headers`, and `:cancel-token` options.
+
+The default client speaks plain HTTP. To use HTTPS, create a generic
+`ollama-kit:make-client` with an HTTPS `/v1` base URL and a TLS-enabled
+`:http-client` as described in [Getting started](../getting-started.md).
+OpenAI-compatible endpoint functions accept that client. The same
+`:allow-insecure-http` rule applies to generic clients.
 
 See the [API reference](../reference/api.md) for lower-level request and
-response ownership and the [conditions reference](../reference/conditions.md)
+response details and the [conditions reference](../reference/conditions.md)
 for failures.

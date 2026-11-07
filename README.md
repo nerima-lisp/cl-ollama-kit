@@ -1,42 +1,42 @@
 # cl-ollama-kit
 
-`cl-ollama-kit` is a transport-independent Common Lisp client for Ollama's
-native API, OpenAI-compatible API, and Anthropic-compatible Messages API.
-Applications provide the concrete network boundary, so HTTP, TLS, pooling,
-and test doubles remain explicit at the application edge.
+`cl-ollama-kit` is a Common Lisp client for Ollama's native API and its
+OpenAI-compatible and Anthropic-compatible APIs. It uses `cl-http-kit` for
+HTTP requests and `cl-http-message-kit` for HTTP message values.
 
-See the [full documentation](docs/src/index.md) for guides and the complete
-API reference.
+See the [full documentation](docs/src/index.md) for guides and the API
+reference.
 
 ## Quick start
 
-`application-network-boundary` below is an application-created
-`cl-boundary-kit` network boundary.
+Load the ASDF system, create a client, and send a chat request to the default
+local endpoint:
 
 ```lisp
 (asdf:load-system "cl-ollama-kit")
-(defparameter *ollama*
-  (ollama-kit:make-client
-   :network-boundary application-network-boundary))
+(defparameter *ollama* (ollama-kit:make-client))
+
 (ollama-kit:chat
- *ollama* "model"
+ *ollama*
+ "model"
  (list (ollama-kit:make-message "user" "Hello.")))
 ;; => a decoded JSON object
 ```
 
-## Version 2.0 contract
+The default client speaks plain HTTP and uses `http://localhost:11434/api`.
+See [Getting started](docs/src/getting-started.md) for transport configuration,
+HTTPS, and streaming.
 
-Version 2.0 intentionally removes the legacy native `legacy-embeddings`
-helper and `/api/embeddings` endpoint. Use `embed`, which targets the current
-JSON-only `/api/embed` endpoint. The OpenAI-compatible `openai-embeddings`
-helper and `/v1/embeddings` endpoint remain available. The experimental
-`openai-images` helper targets `/v1/images/generations`.
+## Version 3.0
+
+Version 3.0 uses `cl-http-kit` directly. The 2.x network-boundary option and
+stream objects are removed. Streaming uses synchronous callbacks, and there is
+no backward-compatibility layer. See [Migrating from 2.x](docs/src/project/migrating-from-2.x.md).
 
 ## Install
 
 Make the checkout and its ASDF dependencies available to the Common Lisp
-implementation. `nix develop` provides the pinned development environment and
-the runtime dependencies used by the system.
+implementation. `nix develop` provides the pinned development environment.
 
 ## Documentation
 
@@ -47,6 +47,7 @@ the runtime dependencies used by the system.
 - [API reference](docs/src/reference/api.md)
 - [Conditions](docs/src/reference/conditions.md)
 - [Architecture](docs/src/reference/architecture.md)
+- [Migrating from 2.x](docs/src/project/migrating-from-2.x.md)
 
 ## Development
 
@@ -58,8 +59,8 @@ paredit inspect lint src t --dialect common-lisp --output json --stats
 nix flake check
 ```
 
-The tests use injected network boundaries and do not require a running model
-service. Coverage writes an HTML report to a temporary directory unless
+The test suite does not require a running model service. Coverage writes an
+HTML report to a temporary directory unless
 `CL_OLLAMA_KIT_COVERAGE_DIRECTORY` is set.
 
 ## Contributing
@@ -70,7 +71,7 @@ when proposing changes.
 
 ## Support
 
-Open an issue with a minimal reproduction, the request shape, and the boundary
+Open an issue with a minimal reproduction, the request shape, and the HTTP
 behavior involved. Do not include credentials or private request data.
 
 ## License

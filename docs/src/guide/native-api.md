@@ -3,12 +3,8 @@
 The native helpers target Ollama's `/api` endpoints. A client created by
 `ollama-kit:make-client` defaults to `http://localhost:11434/api` and joins
 relative endpoint paths to that base URL.
-
-## Version 2 contract
-
-Version 2 intentionally removes the legacy native `legacy-embeddings` helper
-and `/api/embeddings` endpoint. Use `embed` for the current JSON-only
-`/api/embed` endpoint. The OpenAI-compatible embeddings helper is unchanged.
+The examples assume `*ollama*` is the client created in [Getting
+started](../getting-started.md).
 
 ## Generation, chat, and embeddings
 
@@ -18,16 +14,14 @@ The main request pairs are:
 - `ollama-kit:chat` and `ollama-kit:chat-stream` call `/chat`.
 - `ollama-kit:embed` calls `/embed`.
 
-Generation accepts prompt-oriented options such as `:suffix`, `:images`,
-`:format`, `:options`, `:system`, `:template`, `:context`, `:raw`, and
-`:think`, as well as `:keep-alive`, `:logprobs`, and `:top-logprobs`. The
-experimental image-generation controls `:width`, `:height`, and `:steps` are
-passed through when supplied.
+Generation accepts `:suffix`, `:images`, `:format`, `:options`, `:system`,
+`:template`, `:context`, `:raw`, `:think`, `:keep-alive`, `:logprobs`,
+`:top-logprobs`, and the experimental image controls `:width`, `:height`, and
+`:steps`. Chat accepts `:tools`, `:format`, `:options`, `:keep-alive`,
+`:think`, `:logprobs`, and `:top-logprobs`.
 
-Chat takes a list or vector of message values and also accepts `:tools`,
-`:format`, `:options`, `:keep-alive`, `:think`, `:logprobs`, and
-`:top-logprobs`. Create messages explicitly so optional fields remain distinct
-from an omitted value:
+Create messages explicitly so optional fields remain distinct from omitted
+fields:
 
 ```lisp
 (ollama-kit:chat
@@ -39,16 +33,15 @@ from an omitted value:
         :thinking nil)))
 ```
 
-Embedding input may be one string or a list/vector of strings. `:truncate`,
-`:dimensions`, `:options`, and `:keep-alive` are available on `embed`. The
-current official `/api/embed` contract is JSON-only; see the
-[Ollama Embed API](https://docs.ollama.com/api/embed) documentation.
+Embedding input may be one string or a list or vector of strings. `:truncate`,
+`:dimensions`, `:options`, and `:keep-alive` are available on `embed`. This
+helper sends a JSON request to `/embed`.
 
 ## JSON values and structured output
 
 `ollama-kit:json-object` creates a JSON object from alternating keys and
 values. `ollama-kit:+json-unspecified+` means that an optional field is
-omitted. Use `json-kit:+json-null+` when the request must contain JSON `null`.
+omitted. Use `json-kit:+json-null+` when a request must contain JSON `null`.
 
 For structured generation, pass the schema-shaped JSON value through
 `:format`:
@@ -67,62 +60,63 @@ For structured generation, pass the schema-shaped JSON value through
 
 ## Model lifecycle
 
-The model helpers map directly to the native endpoints:
+The model helpers map to native endpoints:
 
 | Helper | Endpoint | Purpose |
 | --- | --- | --- |
-| `list-models` | `/tags` | List locally available models. |
-| `list-running-models` | `/ps` | List models currently loaded in memory. |
-| `show-model` | `/show` | Return model details. |
-| `create-model` | `/create` | Create a model. |
-| `copy-model` | `/copy` | Copy a model. |
-| `delete-model` | `/delete` | Delete a model. |
-| `pull-model` | `/pull` | Pull a model from a registry. |
-| `push-model` | `/push` | Push a model to a registry. |
-| `version` | `/version` | Return the server version. |
+| `ollama-kit:list-models` | `/tags` | List locally available models. |
+| `ollama-kit:list-running-models` | `/ps` | List models currently loaded in memory. |
+| `ollama-kit:show-model` | `/show` | Return model details. |
+| `ollama-kit:create-model` | `/create` | Create a model. |
+| `ollama-kit:copy-model` | `/copy` | Copy a model. |
+| `ollama-kit:delete-model` | `/delete` | Delete a model. |
+| `ollama-kit:pull-model` | `/pull` | Pull a model from a registry. |
+| `ollama-kit:push-model` | `/push` | Push a model to a registry. |
+| `ollama-kit:version` | `/version` | Return the server version. |
 
-The `create-model`, `pull-model`, and `push-model` families also have streaming
-variants for progress events. `create-model` exposes native options including
-`:from`, `:files`, `:adapters`, `:template`, `:license`, `:system`,
-`:parameters`, `:messages`, `:quantize`, `:renderer`, and `:parser`.
+`create-model`, `pull-model`, and `push-model` also have streaming variants.
+`create-model` accepts `:from`, `:files`, `:adapters`, `:template`, `:license`,
+`:system`, `:parameters`, `:messages`, `:quantize`, `:renderer`, and `:parser`.
 
 ## Blobs
 
 `ollama-kit:blob-exists-p` checks a digest with `HEAD /blobs/{digest}` and
-closes the response before returning. `ollama-kit:push-blob` uploads a string
-or octet vector to the same path with an octet-stream content type. Its
-successful response is returned to the caller, who must close it with
-`ollama-kit:close-http-response`.
+returns true when the server reports it exists. `ollama-kit:push-blob`
+uploads a string or octet vector with an octet-stream content type. It returns
+the successful HTTP response object.
 
 ## Web search and fetch
 
-Ollama Cloud provides `ollama-kit:web-search` for `POST /web_search` and
-`ollama-kit:web-fetch` for `POST /web_fetch`. Configure a native client with
-the Cloud base URL and an API key:
+`ollama-kit:web-search` sends a request to `/web_search` and
+`ollama-kit:web-fetch` sends a request to `/web_fetch`. Both return decoded
+JSON objects. `:max-results` is optional on `web-search` and must be between 1
+and 10. Pass `:api-key` when the service requires authentication.
+
+## Streaming
+
+Native streams use NDJSON. `generate-stream`, `chat-stream`,
+`create-model-stream`, `pull-model-stream`, and `push-model-stream` consume the
+response synchronously. Each callback receives a decoded JSON object. Return
+`:stop` from the callback to cancel the active request and complete normally.
+The final non-empty NDJSON line is delivered at EOF even if it has no trailing
+newline.
 
 ```lisp
-(defparameter *ollama-cloud*
-  (ollama-kit:make-client
-   :base-url "https://ollama.com/api"
-   :api-key ollama-api-key
-   :network-boundary application-network-boundary))
-
-(ollama-kit:web-search *ollama-cloud* "Common Lisp" :max-results 5)
-(ollama-kit:web-fetch *ollama-cloud* "https://example.com/docs")
+(ollama-kit:chat-stream
+ *ollama*
+ "model"
+ (list (ollama-kit:make-message "user" "Write a haiku."))
+ (lambda (event)
+   (format t "~S~%" event)))
 ```
 
-`:max-results` is optional and must be between 1 and 10. These operations
-return decoded JSON objects. See Ollama's [web search and fetch
-documentation](https://docs.ollama.com/capabilities/web-search) for Cloud
-availability and response fields.
+The callback runs in the thread consuming the HTTP response. The HTTP response
+is closed before the streaming call returns. Stream endpoint functions accept
+per-call `:response-timeout`, `:idle-timeout`, and `:cancel-token` options in
+addition to `:timeout` and `:headers`. See the [conditions
+reference](../reference/conditions.md) for timeout, cancellation, and protocol
+errors.
 
-## Stream ownership
-
-Native streams decode independent NDJSON events. Always close a stream from an
-`unwind-protect` or use `ollama-kit:stream-events`, which closes it on normal
-completion, when its optional limit is reached, and when consumption signals
-an error. A stream error includes the decoded event and its one-based input
-line; see the [conditions reference](../reference/conditions.md).
-
-For the lower-level transport entry points and response ownership rules, see
-the [API reference](../reference/api.md).
+`ollama-kit:call-with-ollama-stream` consumes an arbitrary native path using a
+caller-supplied method and event callback. See the [API
+reference](../reference/api.md) for its request options and response behavior.
