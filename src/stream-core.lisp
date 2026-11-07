@@ -67,7 +67,6 @@
          (parser
           (%make-stream-parser wire-format max-input-bytes event-function))
          (response-status nil)
-         (response-headers-received-p nil)
          (error-body nil)
          (self-cancelled-p nil)
          (response nil))
@@ -90,8 +89,7 @@
                                                          response-headers)
                                                       (declare (ignore
                                                                 response-headers))
-                                                      (setf response-status status
-                                                            response-headers-received-p t)
+                                                      (setf response-status status)
                                                       (unless
                                                           (%stream-response-success-p
                                                            status)
