@@ -7,11 +7,15 @@
     cl-nix-forge = {
       url = "github:nerima-lisp/cl-nix-forge/v0.7.4";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
     cl-weave = {
       url = "github:nerima-lisp/cl-weave/v1.5.0";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-nix-forge.follows = "cl-nix-forge";
+      inputs.paredit-cli.follows = "paredit-cli";
+      inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
     treefmt-nix = {
@@ -67,6 +71,9 @@
     cl-sse-kit = {
       url = "github:nerima-lisp/cl-sse-kit/v1.1.0";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.cl-codec-kit.follows = "cl-codec-kit";
+      inputs.cl-boundary-kit.follows = "cl-boundary-kit";
+      inputs.cl-concurrent-kit.follows = "cl-concurrent-kit";
       inputs.cl-weave.follows = "cl-weave";
     };
   };
