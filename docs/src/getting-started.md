@@ -76,7 +76,7 @@ callback to cancel the active request and complete normally.
    (format t "~S~%" event)))
 ```
 
-The call consumes the response before it returns and closes the HTTP response.
+The streaming call consumes the response before it returns.
 The lower-level `ollama-kit:call-with-ollama-stream` entry point accepts an
 HTTP method, relative path, callback, and request options. See the [conditions
 reference](reference/conditions.md) for stream and timeout errors.

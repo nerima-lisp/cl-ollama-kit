@@ -49,8 +49,8 @@ callback to cancel the active request and complete normally.
 ```
 
 Anthropic-compatible streams use Server-Sent Events parsed by `cl-sse-kit`.
-An event must end with a blank line before EOF to be delivered. The HTTP
-response is closed before the streaming call returns. Stream calls accept
+An event must end with a blank line before EOF to be delivered. The streaming
+call consumes the response before it returns. Stream calls accept
 per-call `:timeout`, `:response-timeout`, `:idle-timeout`, `:headers`, and
 `:cancel-token` options.
 

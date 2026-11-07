@@ -110,8 +110,8 @@ newline.
    (format t "~S~%" event)))
 ```
 
-The callback runs in the thread consuming the HTTP response. The HTTP response
-is closed before the streaming call returns. Stream endpoint functions accept
+The callback runs in the thread consuming the HTTP response. The streaming call
+consumes the response before it returns. Stream endpoint functions accept
 per-call `:response-timeout`, `:idle-timeout`, and `:cancel-token` options in
 addition to `:timeout` and `:headers`. See the [conditions
 reference](../reference/conditions.md) for timeout, cancellation, and protocol
