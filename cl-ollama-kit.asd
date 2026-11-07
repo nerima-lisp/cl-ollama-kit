@@ -6,7 +6,10 @@
   :maintainer "nerima-lisp contributors"
   :version "2.0.0"
   :license "MIT"
-  :depends-on ((:version "cl-boundary-kit" "2.3.0")
+  :depends-on ((:version "cl-http-kit/client" "0.5.0")
+               (:version "cl-http-kit/tls" "0.5.0")
+               (:version "cl-http-message-kit" "2.0.1")
+               (:version "cl-tls-kit" "0.5.2")
                (:version "cl-codec-kit" "0.5.0")
                (:version "cl-concurrent-kit" "0.6.1")
                (:version "cl-json-kit" "1.2.0"))
@@ -51,9 +54,10 @@
 
 (asdf:defsystem "cl-ollama-kit/test"
   :description "Tests for cl-ollama-kit."
-  :depends-on ((:version "cl-ollama-kit" "2.0.0") (:version "cl-weave" "1.3.0")
-                                                  (:version "cl-sse-kit"
-                                                            "0.1.0"))
+  :depends-on ((:version "cl-ollama-kit" "2.0.0")
+               (:version "cl-weave" "1.3.0")
+               (:version "cl-sse-kit" "0.1.0")
+               (:version "cl-boundary-kit" "2.3.0"))
   :pathname "t"
   :serial t
   :components ((:file "package") (:file "test-support")

@@ -30,8 +30,18 @@
           :reader
           ollama-transport-error-cause
           :documentation
-          "The original condition signalled by the network boundary."))
-  (:documentation "Signals a failure in the injected network transport."))
+          "The original condition signalled by the HTTP transport."))
+  (:documentation "Signals a failure in the HTTP transport."))
+(define-condition ollama-idle-timeout (ollama-transport-error) ()
+  (:documentation "Signals that no body chunk arrived before the idle timeout."))
+
+(define-condition ollama-response-timeout (ollama-transport-error) ()
+  (:documentation "Signals that response headers did not arrive before the response timeout."))
+
+(define-condition ollama-cancelled (ollama-transport-error) ()
+  (:documentation "Signals cancellation requested by the caller."))
+
+
 
 (define-condition ollama-protocol-error
   (ollama-error)

@@ -13,13 +13,11 @@
   "The default Anthropic-compatible endpoint used by MAKE-ANTHROPIC-CLIENT.")
 
 (defparameter +client-option-keys+
-  '(:base-url :network-boundary
-              :headers
-              :api-key
-              :timeout
-              :max-input-length
-              :max-request-length
+  '(:base-url :http-client :headers :api-key
+              :timeout :response-timeout :idle-timeout
+              :max-input-length :max-request-length
               :allow-insecure-http))
+
 
 (defparameter +standard-http-methods+
   '(("ACL" . :acl) ("BASELINE-CONTROL" . :baseline-control)
@@ -68,22 +66,31 @@ become dynamically interned keywords.")
     (client
      (:constructor %make-client
                    (&key base-url
+                         http-client
+                         owned-http-client-p
                          network-boundary
                          headers
                          timeout
+                         response-timeout
+                         idle-timeout
                          max-input-length
                          max-request-length
                          api-key-p
                          allow-insecure-http)))
-  "Configuration and transport boundary for an Ollama client."
+  "Configuration and transport client for an Ollama client."
   (base-url +default-base-url+ :type string)
+  http-client
+  (owned-http-client-p nil :type boolean)
   network-boundary
   headers
   timeout
+  (response-timeout 300)
+  (idle-timeout 120)
   (max-input-length 16777216 :type (integer 1 *))
   (max-request-length 16777216 :type (integer 1 *))
   api-key-p
   allow-insecure-http)
+
 
 (defparameter +json-unspecified+
   (gensym "JSON-UNSPECIFIED-"))
