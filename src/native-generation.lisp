@@ -23,7 +23,7 @@
                            :post
                            "/generate"
                            (lambda (stream-p)
-                             (%native-body (cons "model" model)
+                             (%json-object (cons "model" model)
                                            (cons "prompt" prompt)
                                            (%optional-json-pair "suffix" suffix)
                                            (%optional-json-pair "images"
@@ -31,7 +31,7 @@
                                                                 #'%json-array)
                                            (%optional-json-pair "format"
                                                                 format
-                                                                #'%native-enum)
+                                                                #'%json-enum)
                                            (%optional-json-pair "options"
                                                                 options)
                                            (%optional-json-pair "system" system)
@@ -87,7 +87,7 @@ are passed through when supplied.")
                            :post
                            "/chat"
                            (lambda (stream-p)
-                             (%native-body (cons "model" model)
+                             (%json-object (cons "model" model)
                                            (cons "messages"
                                                  (%json-array messages))
                                            (%optional-json-pair "tools"
@@ -95,7 +95,7 @@ are passed through when supplied.")
                                                                 #'%json-array)
                                            (%optional-json-pair "format"
                                                                 format
-                                                                #'%native-enum)
+                                                                #'%json-enum)
                                            (%optional-json-pair "options"
                                                                 options)
                                            (%optional-json-pair "keep_alive"
@@ -157,7 +157,7 @@ are passed through when supplied.")
                              :post
                              "/embed"
                              :body-form
-                             (%native-body (cons "model" model)
+                             (%json-object (cons "model" model)
                                            (cons "input"
                                                  (%native-embed-input input))
                                            (%optional-json-pair "truncate"

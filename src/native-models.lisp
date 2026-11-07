@@ -27,7 +27,7 @@
                              :post
                              "/show"
                              :body-form
-                             (%native-body (cons "model" model)
+                             (%json-object (cons "model" model)
                                            (%optional-json-pair "verbose"
                                                                 verbose
                                                                 #'%native-bool))
@@ -54,7 +54,7 @@
                            :post
                            "/create"
                            (lambda (stream-p)
-                             (%native-body (cons "model" model)
+                             (%json-object (cons "model" model)
                                            (%optional-json-pair "from" from)
                                            (%optional-json-pair "files" files)
                                            (%optional-json-pair "adapters"
@@ -72,7 +72,7 @@
                                                                 #'%json-array)
                                            (%optional-json-pair "quantize"
                                                                 quantize
-                                                                #'%native-enum)
+                                                                #'%json-enum)
                                            (%optional-json-pair "renderer"
                                                                 renderer)
                                            (%optional-json-pair "parser" parser)
@@ -91,7 +91,7 @@
                              :post
                              "/copy"
                              :body-form
-                             (%native-body (cons "source" source)
+                             (%json-object (cons "source" source)
                                            (cons "destination" destination))
                              :documentation
                              "Copy SOURCE to DESTINATION.")
@@ -104,7 +104,7 @@
                              :delete
                              "/delete"
                              :body-form
-                             (%native-body (cons "model" model))
+                             (%json-object (cons "model" model))
                              :documentation
                              "Delete MODEL.")
 
@@ -118,7 +118,7 @@
                            :post
                            "/pull"
                            (lambda (stream-p)
-                             (%native-body (cons "model" model)
+                             (%json-object (cons "model" model)
                                            (%optional-json-pair "insecure"
                                                                 insecure
                                                                 #'%native-bool)
@@ -138,7 +138,7 @@
                            :post
                            "/push"
                            (lambda (stream-p)
-                             (%native-body (cons "model" model)
+                             (%json-object (cons "model" model)
                                            (%optional-json-pair "insecure"
                                                                 insecure
                                                                 #'%native-bool)

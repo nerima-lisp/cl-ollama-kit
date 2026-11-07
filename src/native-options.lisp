@@ -4,10 +4,6 @@
   (when (%json-supplied-p value)
     (cons key (funcall transform value))))
 
-(defmacro %native-body (&rest pairs)
-  "Build a native JSON object directly from PAIRS."
-  `(%json-object ,@pairs))
-
 (defun %stream-option-pair (stream-p)
   (cons "stream"
         (if stream-p
@@ -25,10 +21,7 @@
             :detail
             value))))
 
-(defun %native-enum (value)
-  (%json-enum value))
-
 (defun %native-think (value)
   (if (or (stringp value) (symbolp value))
-      (%native-enum value)
+      (%json-enum value)
       (%native-bool value)))

@@ -424,7 +424,6 @@
                                     ollama-kit::%optional-json-pair
                                     ollama-kit::%stream-option-pair
                                     ollama-kit::%native-bool
-                                    ollama-kit::%native-enum
                                     ollama-kit::%native-think))
                 (assert
                  (= 1 (ollama-kit::%utf8-character-octets (code-char #x41))))
@@ -478,8 +477,8 @@
                  (%signals-p 'ollama-argument-error
                              (lambda ()
                                (ollama-kit::%native-bool 7))))
-                (assert (equal "low" (ollama-kit::%native-enum :low)))
-                (assert (equal "low" (ollama-kit::%native-enum "low")))
+                (assert (equal "low" (ollama-kit::%json-enum :low)))
+                (assert (equal "low" (ollama-kit::%json-enum "low")))
                 (assert (equal "low" (ollama-kit::%native-think :low)))
                 (assert (equal "low" (ollama-kit::%native-think "low")))
                 (assert (equal "nil" (ollama-kit::%native-think nil)))
