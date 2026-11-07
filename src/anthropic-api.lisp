@@ -27,7 +27,7 @@ as ANTHROPIC-VERSION, can be supplied through HEADERS."
 (defun %anthropic-stream-body (body)
   (%json-object-with-field body "stream" t))
 
-(define-anthropic-json-endpoint anthropic-messages
+(define-json-endpoint %request-json-value anthropic-messages
                                 (client body
                                         &key
                                         (timeout +timeout-unspecified+)

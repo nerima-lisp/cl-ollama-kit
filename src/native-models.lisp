@@ -1,6 +1,6 @@
 #.(progn (in-package :ollama-kit) nil)
 
-(define-native-json-endpoint list-models
+(define-json-endpoint %request-json-value list-models
                              (client &key
                                      (timeout +timeout-unspecified+)
                                      headers)
@@ -9,7 +9,7 @@
                              :documentation
                              "List locally available models.")
 
-(define-native-json-endpoint list-running-models
+(define-json-endpoint %request-json-value list-running-models
                              (client &key
                                      (timeout +timeout-unspecified+)
                                      headers)
@@ -18,7 +18,7 @@
                              :documentation
                              "List models currently loaded in memory.")
 
-(define-native-json-endpoint show-model
+(define-json-endpoint %request-json-value show-model
                              (client model
                                      &key
                                      (verbose +json-unspecified+)
@@ -82,7 +82,7 @@
                            :stream-documentation
                            "Stream model creation status events.")
 
-(define-native-json-endpoint copy-model
+(define-json-endpoint %request-json-value copy-model
                              (client source
                                      destination
                                      &key
@@ -96,7 +96,7 @@
                              :documentation
                              "Copy SOURCE to DESTINATION.")
 
-(define-native-json-endpoint delete-model
+(define-json-endpoint %request-json-value delete-model
                              (client model
                                      &key
                                      (timeout +timeout-unspecified+)
@@ -148,7 +148,7 @@
                            :stream-documentation
                            "Stream push progress events for MODEL.")
 
-(define-native-json-endpoint version
+(define-json-endpoint %request-json-value version
                              (client &key
                                      (timeout +timeout-unspecified+)
                                      headers)

@@ -12,7 +12,7 @@
 (defun %openai-stream-body (body)
   (%json-object-with-field body "stream" t))
 
-(define-openai-json-endpoint openai-models
+(define-json-endpoint %request-json-value openai-models
                              (client &key
                                      (timeout +timeout-unspecified+)
                                      headers)
@@ -59,7 +59,7 @@
                          :headers
                          headers)))
 
-(define-openai-json-endpoint openai-chat-completions
+(define-json-endpoint %request-json-value openai-chat-completions
                              (client body
                                      &key
                                      (timeout +timeout-unspecified+)
@@ -84,7 +84,7 @@
                                :documentation
                                "Stream a chat completion using an OpenAI-compatible request BODY.")
 
-(define-openai-json-endpoint openai-completions
+(define-json-endpoint %request-json-value openai-completions
                              (client body
                                      &key
                                      (timeout +timeout-unspecified+)
@@ -109,7 +109,7 @@
                                :documentation
                                "Stream a text completion using an OpenAI-compatible request BODY.")
 
-(define-openai-json-endpoint openai-embeddings
+(define-json-endpoint %request-json-value openai-embeddings
                              (client body
                                      &key
                                      (timeout +timeout-unspecified+)
@@ -121,7 +121,7 @@
                              :documentation
                              "Create embeddings using an OpenAI-compatible request BODY.")
 
-(define-openai-json-endpoint openai-responses
+(define-json-endpoint %request-json-value openai-responses
                              (client body
                                      &key
                                      (timeout +timeout-unspecified+)
@@ -146,7 +146,7 @@
                                :documentation
                                "Stream a response through Ollama's experimental `/v1/responses` API.")
 
-(define-openai-json-endpoint openai-images
+(define-json-endpoint %request-json-value openai-images
                              (client body
                                      &key
                                      (timeout +timeout-unspecified+)

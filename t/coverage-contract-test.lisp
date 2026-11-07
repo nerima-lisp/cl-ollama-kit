@@ -177,24 +177,24 @@
                   t))
               (dolist
                   (declaration
-                   '((ollama-kit::define-native-json-endpoint :endpoint
+                   '((ollama-kit::define-json-endpoint ollama-kit::%request-json-value :endpoint
                                                               (client &key
                                                                       timeout
                                                                       headers)
                                                               :get
                                                               "/version")
-                     (ollama-kit::define-native-json-endpoint endpoint
+                     (ollama-kit::define-json-endpoint ollama-kit::%request-json-value endpoint
                                                               (&key timeout
                                                                     headers)
                                                               :get
                                                               "/version")
-                     (ollama-kit::define-native-json-endpoint endpoint
+                     (ollama-kit::define-json-endpoint ollama-kit::%request-json-value endpoint
                                                               (client &key
                                                                       timeout
                                                                       headers)
                                                               get
                                                               "/version")
-                     (ollama-kit::define-native-json-endpoint endpoint
+                     (ollama-kit::define-json-endpoint ollama-kit::%request-json-value endpoint
                                                               (client &key
                                                                       timeout
                                                                       headers)

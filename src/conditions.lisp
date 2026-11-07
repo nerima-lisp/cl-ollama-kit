@@ -32,16 +32,21 @@
           :documentation
           "The original condition signalled by the HTTP transport."))
   (:documentation "Signals a failure in the HTTP transport."))
-(define-condition ollama-idle-timeout (ollama-transport-error) ()
-  (:documentation "Signals that no body chunk arrived before the idle timeout."))
 
-(define-condition ollama-response-timeout (ollama-transport-error) ()
-  (:documentation "Signals that response headers did not arrive before the response timeout."))
+(defmacro define-transport-condition (name docstring)
+  `(define-condition ,name
+     (ollama-transport-error)
+     ()
+     (:documentation ,docstring)))
 
-(define-condition ollama-cancelled (ollama-transport-error) ()
-  (:documentation "Signals cancellation requested by the caller."))
+(define-transport-condition ollama-idle-timeout
+                            "Signals that no body chunk arrived before the idle timeout.")
 
+(define-transport-condition ollama-response-timeout
+                            "Signals that response headers did not arrive before the response timeout.")
 
+(define-transport-condition ollama-cancelled
+                            "Signals cancellation requested by the caller.")
 
 (define-condition ollama-protocol-error
   (ollama-error)

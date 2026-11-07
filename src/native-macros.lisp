@@ -131,36 +131,16 @@ declarative and removes a runtime closure and FUNCALL from every request."
                                   :headers
                                   ,headers-var))))))
 
-(defmacro define-native-json-endpoint (name lambda-list
-                                            method
-                                            path
-                                            &key
-                                            (body-form nil body-form-supplied-p)
-                                            documentation)
-  "Define a native JSON endpoint from its request contract.
-
-The first lambda-list variable is the client.  TIMEOUT and HEADERS are the
-standard endpoint keyword variables.  Keeping the transport invocation in
-this macro makes endpoint declarations describe data while REQUEST-JSON
-continues to own validation and encoding; the generated helper closes the
-successful response before returning its decoded value."
-  (%expand-json-endpoint '%request-json-value
-                         name
-                         lambda-list
-                         method
-                         path
-                         body-form
-                         body-form-supplied-p
-                         documentation))
-
-(defmacro define-openai-json-endpoint (name lambda-list
-                                            method
-                                            path
-                                            &key
-                                            (body-form nil body-form-supplied-p)
-                                            documentation)
-  "Define an OpenAI-compatible JSON endpoint from its request contract."
-  (%expand-json-endpoint '%request-json-value
+(defmacro define-json-endpoint (request-function name lambda-list
+                                method
+                                path
+                                &key
+                                (body-form nil body-form-supplied-p)
+                                documentation)
+  "Define a JSON endpoint from its request contract."
+  (unless (symbolp request-function)
+    (error 'program-error))
+  (%expand-json-endpoint request-function
                          name
                          lambda-list
                          method
@@ -229,23 +209,6 @@ successful response before returning its decoded value."
                                               documentation)
   "Define an OpenAI-compatible SSE endpoint with forced stream mode."
   (%expand-openai-stream-endpoint name lambda-list method path documentation))
-
-(defmacro define-anthropic-json-endpoint (name lambda-list
-                                               method
-                                               path
-                                               &key
-                                               (body-form nil
-                                                          body-form-supplied-p)
-                                               documentation)
-  "Define an Anthropic-compatible JSON endpoint from its request contract."
-  (%expand-json-endpoint '%request-json-value
-                         name
-                         lambda-list
-                         method
-                         path
-                         body-form
-                         body-form-supplied-p
-                         documentation))
 
 (defmacro define-anthropic-stream-endpoint (name lambda-list
                                                  method

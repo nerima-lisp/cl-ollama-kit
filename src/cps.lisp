@@ -38,48 +38,44 @@ continuations themselves are deliberately not intercepted."
   (with-ollama-continuations (success failure)
                              (apply #'request-json client method path arguments)))
 
-(defun call-with-ollama-stream (client method path event-function &rest options)
-  "Consume native Ollama NDJSON events synchronously.
+(defmacro define-event-stream-consumer (name wire-format content-type docstring)
+  (let ((function-name name)
+        (wire-format-value wire-format)
+        (content-type-value content-type)
+        (function-docstring docstring))
+    `(defun ,function-name (client method path event-function &rest options)
+       ,function-docstring
+       (%call-with-event-stream client
+                                method
+                                path
+                                ,wire-format-value
+                                event-function
+                                ,content-type-value
+                                options))))
+
+(define-event-stream-consumer call-with-openai-stream
+                              :sse
+                              "text/event-stream"
+                              "Consume OpenAI-compatible SSE events synchronously.
 
 EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
 the active request and complete normally. The HTTP response is closed before
-this function returns."
-  (%call-with-event-stream client
-                           method
-                           path
-                           :ndjson
-                           event-function
-                           "application/x-ndjson"
-                           options))
+this function returns.")
 
-(defun call-with-openai-stream (client method path event-function &rest options)
-  "Consume OpenAI-compatible SSE events synchronously.
+(define-event-stream-consumer call-with-ollama-stream
+                              :ndjson
+                              "application/x-ndjson"
+                              "Consume native Ollama NDJSON events synchronously.
 
 EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
 the active request and complete normally. The HTTP response is closed before
-this function returns."
-  (%call-with-event-stream client
-                           method
-                           path
-                           :sse
-                           event-function
-                           "text/event-stream"
-                           options))
+this function returns.")
 
-(defun call-with-anthropic-stream (client method
-                                          path
-                                          event-function
-                                          &rest
-                                          options)
-  "Consume Anthropic-compatible SSE events synchronously.
+(define-event-stream-consumer call-with-anthropic-stream
+                              :sse
+                              "text/event-stream"
+                              "Consume Anthropic-compatible SSE events synchronously.
 
 EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
 the active request and complete normally. The HTTP response is closed before
-this function returns."
-  (%call-with-event-stream client
-                           method
-                           path
-                           :sse
-                           event-function
-                           "text/event-stream"
-                           options))
+this function returns.")

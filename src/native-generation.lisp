@@ -144,7 +144,7 @@ are passed through when supplied.")
            value))
   value)
 
-(define-native-json-endpoint embed
+(define-json-endpoint %request-json-value embed
                              (client model
                                      input
                                      &key
