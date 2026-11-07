@@ -364,39 +364,39 @@
               (http-kit/network:close-http-tcp-stream stream)
               (%loopback-set-state server :stream-closed-p t))
           (error (condition)
-            (setf cleanup-error condition))))
+                 (setf cleanup-error condition))))
       (unless (loopback-http-server-listener-closed-p server)
         (handler-case
             (progn
               (http-kit/network:close-http-tcp-listener listener)
               (%loopback-set-state server :listener-closed-p t))
           (error (condition)
-            (unless cleanup-error
-              (setf cleanup-error condition)))))
+                 (unless cleanup-error
+                   (setf cleanup-error condition)))))
       (let* ((thread (%loopback-http-server-thread server))
              (joined-p
-               (or (null thread)
-                   (not (eq :timed-out
-                            (sb-thread:join-thread
-                             thread
-                             :timeout +loopback-http-thread-join-seconds+
-                             :default :timed-out)))))) (%loopback-set-state server :thread-joined-p joined-p)
-      (when cleanup-error
-        (error cleanup-error))
-      (values server
-              (loopback-http-server-thread-joined-p server)
-              (loopback-http-server-listener-closed-p server))))
-
-  (cl-weave:around-each (next)
-    (let ((*loopback-http-servers* nil))
-      (unwind-protect
-           (funcall next)
-        (dolist (server *loopback-http-servers*)
-          (close-loopback-http-server server)
-          (unless (loopback-http-server-thread-joined-p server)
-            (error "Loopback HTTP server thread did not join."))
-          (unless (loopback-http-server-listener-closed-p server)
-            (error "Loopback HTTP listener did not close.")))))))
+              (or (null thread)
+                  (not (eq :timed-out
+                           (sb-thread:join-thread
+                            thread
+                            :timeout +loopback-http-thread-join-seconds+
+                            :default :timed-out))))))
+        (%loopback-set-state server :thread-joined-p joined-p)
+        (when cleanup-error
+          (error cleanup-error))
+        (values server
+                (loopback-http-server-thread-joined-p server)
+                (loopback-http-server-listener-closed-p server)))))
+(cl-weave:around-each (next)
+  (let ((*loopback-http-servers* nil))
+    (unwind-protect
+        (funcall next)
+      (dolist (server *loopback-http-servers*)
+        (close-loopback-http-server server)
+        (unless (loopback-http-server-thread-joined-p server)
+          (error "Loopback HTTP server thread did not join."))
+        (unless (loopback-http-server-listener-closed-p server)
+          (error "Loopback HTTP listener did not close."))))))
 
 
 (defun request-json-object (request)

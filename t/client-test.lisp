@@ -152,23 +152,17 @@
                (assert (equal expected-message
                               (ollama-error-message condition))))))
           (it-each
-           (("invalid header name" "Bad Header" "value" nil nil)
-            ("header injection" "X-Test" "ok" #\Return #\Linefeed))
+           (("invalid header name" "Bad Header" "value")
+            ("header injection" "X-Test"
+             (format nil "ok~C~CInjected: yes" #\Return #\Linefeed)))
            "rejects ~A in client headers"
-           (name header-name header-value cr lf)
+           (name header-name header-value)
            (let ((condition nil))
              (handler-case
-                 (make-client
-                  :headers
-                  (list
-                   (cons header-name
-                         (if cr
-                             (format nil "~A~C~CInjected: yes"
-                                     header-value cr lf)
-                             header-value))))
+                 (make-client :headers (list (cons header-name header-value)))
                (ollama-argument-error (caught)
                  (setf condition caught)))
-             (assert (typep condition 'ollama-argument-error))))
+             (assert condition)))
           (it "normalizes endpoint slashes and preserves the base path"
               (let* ((server (make-loopback-http-server))
                      (base-url
