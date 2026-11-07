@@ -29,9 +29,6 @@
 (defparameter +client-option-keys+
   (mapcar #'first +client-option-table+))
 
-(defun %client-option-default (name)
-  (second (assoc name +client-option-table+)))
-
 (defparameter +standard-http-methods+
   '(("ACL" . :acl) ("BASELINE-CONTROL" . :baseline-control)
     ("BIND" . :bind)
@@ -90,21 +87,22 @@ become dynamically interned keywords.")
                          api-key-p
                          allow-insecure-http)))
   "Configuration and transport client for an Ollama client."
-  (base-url (%client-option-default :base-url) :type string)
-  (http-client (%client-option-default :http-client))
+  (base-url (second (assoc :base-url +client-option-table+)) :type string)
+  (http-client (second (assoc :http-client +client-option-table+)))
   (owned-http-client-p nil :type boolean)
-  (headers (%client-option-default :headers))
-  (timeout (%client-option-default :timeout))
-  (response-timeout (%client-option-default :response-timeout))
-  (idle-timeout (%client-option-default :idle-timeout))
-  (max-input-length (%client-option-default :max-input-length)
+  (headers (second (assoc :headers +client-option-table+)))
+  (timeout (second (assoc :timeout +client-option-table+)))
+  (response-timeout (second (assoc :response-timeout +client-option-table+)))
+  (idle-timeout (second (assoc :idle-timeout +client-option-table+)))
+  (max-input-length (second (assoc :max-input-length +client-option-table+))
                     :type
                     (integer 1 *))
-  (max-request-length (%client-option-default :max-request-length)
+  (max-request-length (second (assoc :max-request-length +client-option-table+))
                       :type
                       (integer 1 *))
-  (api-key-p (not (null (%client-option-default :api-key))))
-  (allow-insecure-http (%client-option-default :allow-insecure-http)))
+  (api-key-p (not (null (second (assoc :api-key +client-option-table+)))))
+  (allow-insecure-http
+   (second (assoc :allow-insecure-http +client-option-table+))))
 
 (defparameter +json-unspecified+
   (gensym "JSON-UNSPECIFIED-"))

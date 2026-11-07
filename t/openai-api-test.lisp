@@ -208,8 +208,7 @@
            (assert (equalp #("Hello" "world") (gethash "input" sent)))
            (assert (equal "fixture-model" (gethash "model" value)))
            (assert (< (abs (- 0.1 (aref embedding 0))) 0.000001))
-           (assert (< (abs (- 0.2 (aref embedding 1))) 0.000001)))))
-
+           (assert (< (abs (- 0.2 (aref embedding 1))) 0.000001))))))
     (it "sends a response request and decodes output text"
       (%call-with-openai-loopback-response
        "{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hello\"}]}]}"
@@ -235,7 +234,6 @@
            (assert (equal "completed" (gethash "status" value)))
            (assert (equal "output_text" (gethash "type" content)))
            (assert (equal "Hello" (gethash "text" content)))))))
-
     (it "delivers ordered response lifecycle events"
       (%call-with-openai-loopback-response
        (format nil
@@ -262,7 +260,7 @@
              (assert (equal "response.completed" (gethash "type" completed)))
              (assert
               (equal "completed"
-                     (gethash "status" (gethash "response" completed))))))))))))
+                     (gethash "status" (gethash "response" completed)))))))))))
 
 (it "supports experimental image generation with the documented fields"
   (%call-with-openai-loopback-response

@@ -7,13 +7,10 @@
   (some #'%url-control-p url))
 
 (defun %url-scheme (url)
-  (handler-case (let ((scheme
-                       (http-kit:http-uri-scheme (http-kit:parse-http-uri url))))
-                  (if (string= scheme "http")
-                      :http
-                      :https))
-    (http-kit:http-invalid-uri ()
-      nil)))
+  (let ((scheme (http-kit:http-uri-scheme (http-kit:parse-http-uri url))))
+    (if (string= scheme "http")
+        :http
+        :https)))
 
 (defun %base-url-loopback-p (base-url)
   (handler-case (let* ((uri (http-kit:parse-http-uri base-url))

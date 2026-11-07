@@ -301,6 +301,14 @@
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
+                               (make-client :http-client 7))))
+                (assert
+                 (%signals-p 'ollama-argument-error
+                             (lambda ()
+                               (close-client 7))))
+                (assert
+                 (%signals-p 'ollama-argument-error
+                             (lambda ()
                                (make-client :http-client
                                             http-client
                                             :timeout

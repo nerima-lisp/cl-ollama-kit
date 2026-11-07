@@ -39,8 +39,8 @@
                           headers)))
     (let ((status (http-response-status response)))
       (cond
-        ((and (integerp status) (<= 200 status 299)) t)
-        ((and (integerp status) (= status 404)) nil)
+        ((<= 200 status 299) t)
+        ((= status 404) nil)
         (t (%raise-http-error response client))))))
 
 (defun push-blob (client digest

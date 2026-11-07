@@ -75,6 +75,11 @@
                                (client-headers client)
                                :test #'string-equal))))
         (close-client client))))
+  (it "leaves compatibility headers unset by default"
+  (let ((client (make-anthropic-client)))
+    (unwind-protect
+         (assert (null (client-headers client)))
+      (close-client client))))
   (it "forces streaming and delivers decoded Anthropic SSE events"
     (let* ((response-body
              (format nil

@@ -19,6 +19,9 @@
            (format nil "~A must be a positive integer." (symbol-name name))))
   value)
 
+(defun %client-option-default (name)
+  (second (assoc name +client-option-table+)))
+
 (defun %validate-client-options (option-values)
   (loop for option in +client-option-table+
         for name = (first option)
@@ -75,7 +78,7 @@
 (defun %client-option-values (options)
   (loop for option in +client-option-table+
         for name = (first option)
-        for default = (second option)
+        for default = (%client-option-default name)
         append (list name (%keyword-option options name default))))
 
 (defun make-client (&rest options)

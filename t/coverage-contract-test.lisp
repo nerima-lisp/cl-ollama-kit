@@ -1,4 +1,100 @@
 (in-package #:ollama-kit/test)
+(describe "generated endpoint macro contracts"
+  (it "expands JSON endpoints and rejects non-symbol request functions"
+    (let* ((form
+            (list (quote ollama-kit::define-json-endpoint)
+                  (quote ollama-kit::%request-json-value)
+                  (quote generated-json-endpoint)
+                  (quote (ollama-kit::client &key ollama-kit::timeout ollama-kit::headers))
+                  :post
+                  "/coverage"
+                  :documentation
+                  "Generated JSON endpoint."))
+           (expansion (macroexpand-1 form)))
+      (assert (eq (quote defun) (first expansion)))
+      (assert (eq (quote generated-json-endpoint) (second expansion)))
+      (assert (equal (quote (ollama-kit::client &key ollama-kit::timeout ollama-kit::headers))
+                     (third expansion)))
+      (assert (equal "Generated JSON endpoint." (fourth expansion)))
+      (assert (equal (list (quote ollama-kit::%request-json-value)
+                           (quote ollama-kit::client)
+                           (quote (quote :post))
+                           (quote (quote "/coverage"))
+                           :timeout
+                           (quote ollama-kit::timeout)
+                           :headers
+                           (quote ollama-kit::headers))
+                     (fifth expansion))))
+    (handler-case
+        (progn
+          (macroexpand-1
+           (quote (ollama-kit::define-json-endpoint
+                   (function list)
+                   generated-invalid-endpoint
+                   (ollama-kit::client &key ollama-kit::timeout ollama-kit::headers)
+                   :get
+                   "/invalid")))
+          (assert nil))
+      (program-error () t)))
+  (it "expands each event stream consumer with its wire contract"
+  (dolist
+      (contract
+       '((ollama-kit::call-with-openai-stream
+          :sse
+          "text/event-stream"
+          "Consume OpenAI-compatible SSE events synchronously.
+
+EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
+the active request and complete normally. The HTTP response is closed before
+this function returns.")
+         (ollama-kit::call-with-ollama-stream
+          :ndjson
+          "application/x-ndjson"
+          "Consume native Ollama NDJSON events synchronously.
+
+EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
+the active request and complete normally. The HTTP response is closed before
+this function returns.")
+         (ollama-kit::call-with-anthropic-stream
+          :sse
+          "text/event-stream"
+          "Consume Anthropic-compatible SSE events synchronously.
+
+EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
+the active request and complete normally. The HTTP response is closed before
+this function returns.")))
+    (destructuring-bind (name wire-format content-type documentation)
+        contract
+      (let* ((form
+              (list (quote ollama-kit::define-event-stream-consumer)
+                    name
+                    wire-format
+                    content-type
+                    documentation))
+             (expansion (macroexpand-1 form)))
+        (assert (eq (quote defun) (first expansion)))
+        (assert (eq name (second expansion)))
+        (assert
+         (equal
+          (quote (ollama-kit::client
+                  ollama-kit::method
+                  ollama-kit::path
+                  ollama-kit::event-function
+                  &rest
+                  ollama-kit::options))
+          (third expansion)))
+        (assert (equal documentation (fourth expansion)))
+        (assert
+         (equal
+          (list (quote ollama-kit::%call-with-event-stream)
+                (quote ollama-kit::client)
+                (quote ollama-kit::method)
+                (quote ollama-kit::path)
+                wire-format
+                (quote ollama-kit::event-function)
+                content-type
+                (quote ollama-kit::options))
+          (fifth expansion))))))))
 
 (describe "argument and continuation contracts"
           (it "rejects unsafe OpenAI model names"
