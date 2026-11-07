@@ -27,23 +27,23 @@ as ANTHROPIC-VERSION, can be supplied through HEADERS."
 (defun %anthropic-stream-body (body)
   (%json-object-with-field body "stream" t))
 
-(define-json-endpoint %request-json-value anthropic-messages
-                                (client body
-                                        &key
-                                        (timeout +timeout-unspecified+)
-                                        headers)
-                                :post
-                                "/messages"
-                                :body-form
-                                body
-                                :documentation
-                                "Create an Anthropic-compatible Messages response from a JSON BODY.")
+(define-json-endpoint %request-json-value
+                      anthropic-messages
+                      (client body &key (timeout +timeout-unspecified+) headers)
+                      :post
+                      "/messages"
+                      :body-form
+                      body
+                      :documentation
+                      "Create an Anthropic-compatible Messages response from a JSON BODY.")
 
 (define-anthropic-stream-endpoint anthropic-messages-stream
-                                  (client body event-function
+                                  (client body
+                                          event-function
                                           &key
                                           (timeout +timeout-unspecified+)
-                                          (response-timeout +timeout-unspecified+)
+                                          (response-timeout
+                                           +timeout-unspecified+)
                                           (idle-timeout +timeout-unspecified+)
                                           headers
                                           cancel-token)

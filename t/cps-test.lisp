@@ -2,49 +2,52 @@
 
 (describe "continuation-passing JSON API"
           (it "dispatches successful values and API errors to continuations"
-  (let ((success-value nil)
-        (success-response nil)
-        (failure-condition nil))
-    (call-with-json
-     (client-with-request-function
-      (lambda (request &key timeout &allow-other-keys)
-        (declare (ignore request timeout))
-        (response-with-text "{\"ok\":true}")))
-     :get
-     "/version"
-     (lambda (value response)
-       (setf success-value (gethash "ok" value)
-             success-response response))
-     (lambda (condition)
-       (setf failure-condition condition)))
-    (with-soft-assertions
-        (expect success-value :to-be t)
-      (expect failure-condition :to-be nil)
-      (expect success-response
-              :to-satisfy
-              (lambda (response)
-                (http-message-kit:http-response-p response)))
-      (expect (http-message-kit:http-response-status success-response)
-              :to-be 200)))
-  (let ((failure-condition nil))
-    (call-with-json
-     (client-with-request-function
-      (lambda (request &key timeout &allow-other-keys)
-        (declare (ignore request timeout))
-        (response-with-text "{\"error\":\"missing\"}"
-                            :status 404)))
-     :get
-     "/version"
-     (lambda (&rest values)
-       (declare (ignore values))
-       (error "The success continuation must not run."))
-     (lambda (condition)
-       (setf failure-condition condition)))
-    (expect failure-condition
-            :to-satisfy
-            (lambda (condition)
-              (and (typep condition 'ollama-api-error)
-                   (equal "missing" (ollama-error-message condition))))))))
+              (let ((success-value nil)
+                    (success-response nil)
+                    (failure-condition nil))
+                (call-with-json
+                 (client-with-request-function
+                  (lambda (request &key timeout &allow-other-keys)
+                    (declare (ignore request timeout))
+                    (response-with-text "{\"ok\":true}")))
+                 :get
+                 "/version"
+                 (lambda (value response)
+                   (setf success-value (gethash "ok" value)
+                         success-response response))
+                 (lambda (condition)
+                   (setf failure-condition condition)))
+                (with-soft-assertions (expect success-value :to-be t)
+                                      (expect failure-condition :to-be nil)
+                                      (expect success-response
+                                              :to-satisfy
+                                              (lambda (response)
+                                                (http-message-kit:http-response-p
+                                                 response)))
+                                      (expect
+                                       (http-message-kit:http-response-status
+                                        success-response)
+                                       :to-be
+                                       200)))
+              (let ((failure-condition nil))
+                (call-with-json
+                 (client-with-request-function
+                  (lambda (request &key timeout &allow-other-keys)
+                    (declare (ignore request timeout))
+                    (response-with-text "{\"error\":\"missing\"}" :status 404)))
+                 :get
+                 "/version"
+                 (lambda (&rest values)
+                   (declare (ignore values))
+                   (error "The success continuation must not run."))
+                 (lambda (condition)
+                   (setf failure-condition condition)))
+                (expect failure-condition
+                        :to-satisfy
+                        (lambda (condition)
+                          (and (typep condition 'ollama-api-error)
+                               (equal "missing"
+                                      (ollama-error-message condition))))))))
 
 (describe "continuation macro"
           (it

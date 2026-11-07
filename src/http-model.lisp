@@ -5,4 +5,3 @@
   (and (http-response-p response)
        (integerp (http-response-status response))
        (<= 200 (http-response-status response) 299)))
-

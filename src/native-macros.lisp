@@ -4,7 +4,16 @@
     ((and (consp spec) (consp (first spec))) (second (first spec)))
     ((consp spec) (first spec))
     (t nil)))
-(define-condition %stream-endpoint-lambda-list-error (program-error simple-condition) () (:report (lambda (condition stream) (apply (function format) stream (simple-condition-format-control condition) (simple-condition-format-arguments condition)))))
+
+(define-condition %stream-endpoint-lambda-list-error
+  (program-error simple-condition)
+  ()
+  (:report
+   (lambda (condition stream)
+     (apply (function format)
+            stream
+            (simple-condition-format-control condition)
+            (simple-condition-format-arguments condition)))))
 
 (defun %endpoint-keyword-variable (lambda-list name)
   (let ((key-position (position '&key lambda-list)))
@@ -84,8 +93,10 @@
            nil))
   (unless (position '&key lambda-list)
     (error '%stream-endpoint-lambda-list-error
-           :format-control "Stream endpoint lambda list requires &key."
-           :format-arguments nil))
+           :format-control
+           "Stream endpoint lambda list requires &key."
+           :format-arguments
+           nil))
   (unless (%endpoint-keyword-variable lambda-list "CANCEL-TOKEN")
     (error '%stream-endpoint-lambda-list-error
            :format-control
@@ -147,12 +158,14 @@ declarative and removes a runtime closure and FUNCALL from every request."
                                   :headers
                                   ,headers-var))))))
 
-(defmacro define-json-endpoint (request-function name lambda-list
-                                method
-                                path
-                                &key
-                                (body-form nil body-form-supplied-p)
-                                documentation)
+(defmacro define-json-endpoint (request-function name
+                                                 lambda-list
+                                                 method
+                                                 path
+                                                 &key
+                                                 (body-form nil
+                                                            body-form-supplied-p)
+                                                 documentation)
   "Define a JSON endpoint from its request contract."
   (unless (symbolp request-function)
     (error 'program-error))

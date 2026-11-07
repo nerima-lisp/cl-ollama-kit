@@ -7,4 +7,3 @@
      (or (coverage-tree-contains-symbol-p (car tree) symbol)
          (coverage-tree-contains-symbol-p (cdr tree) symbol)))
     (t nil)))
-

@@ -136,10 +136,10 @@
 (defun %raise-http-error (response client)
   (let* ((status (http-response-status response))
          (body
-           (handler-case
-               (%response-body-string response
-                                      (client-max-input-length client))
-             (ollama-protocol-error () "")))
+          (handler-case (%response-body-string response
+                                               (client-max-input-length client))
+            (ollama-protocol-error ()
+              "")))
          (data (%http-error-data body (client-max-input-length client))))
     (%signal-http-error response status body data)))
 

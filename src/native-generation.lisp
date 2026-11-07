@@ -144,35 +144,34 @@ are passed through when supplied.")
            value))
   value)
 
-(define-json-endpoint %request-json-value embed
-                             (client model
-                                     input
-                                     &key
-                                     (truncate +json-unspecified+)
-                                     (dimensions +json-unspecified+)
-                                     (options +json-unspecified+)
-                                     (keep-alive +json-unspecified+)
-                                     (timeout +timeout-unspecified+)
-                                     headers)
-                             :post
-                             "/embed"
-                             :body-form
-                             (%json-object (cons "model" model)
-                                           (cons "input"
-                                                 (%native-embed-input input))
-                                           (%optional-json-pair "truncate"
-                                                                truncate
-                                                                #'%native-bool)
-                                           (%optional-json-pair "dimensions"
-                                                                dimensions
-                                                                #'%native-embed-dimensions)
-                                           (%optional-json-pair "options"
-                                                                options)
-                                           (%optional-json-pair "keep_alive"
-                                                                keep-alive
-                                                                #'%native-embed-keep-alive))
-                             :documentation
-                             "Create embeddings through Ollama's JSON-only native `/api/embed` endpoint.
+(define-json-endpoint %request-json-value
+                      embed
+                      (client model
+                              input
+                              &key
+                              (truncate +json-unspecified+)
+                              (dimensions +json-unspecified+)
+                              (options +json-unspecified+)
+                              (keep-alive +json-unspecified+)
+                              (timeout +timeout-unspecified+)
+                              headers)
+                      :post
+                      "/embed"
+                      :body-form
+                      (%json-object (cons "model" model)
+                                    (cons "input" (%native-embed-input input))
+                                    (%optional-json-pair "truncate"
+                                                         truncate
+                                                         #'%native-bool)
+                                    (%optional-json-pair "dimensions"
+                                                         dimensions
+                                                         #'%native-embed-dimensions)
+                                    (%optional-json-pair "options" options)
+                                    (%optional-json-pair "keep_alive"
+                                                         keep-alive
+                                                         #'%native-embed-keep-alive))
+                      :documentation
+                      "Create embeddings through Ollama's JSON-only native `/api/embed` endpoint.
 
 INPUT is a string or a list/vector of strings.  DIMENSIONS must be an integer
 and KEEP-ALIVE must be a duration string when supplied.")

@@ -1,100 +1,112 @@
 (in-package #:ollama-kit/test)
+
 (describe "generated endpoint macro contracts"
-  (it "expands JSON endpoints and rejects non-symbol request functions"
-    (let* ((form
-            (list (quote ollama-kit::define-json-endpoint)
-                  (quote ollama-kit::%request-json-value)
-                  (quote generated-json-endpoint)
-                  (quote (ollama-kit::client &key ollama-kit::timeout ollama-kit::headers))
-                  :post
-                  "/coverage"
-                  :documentation
-                  "Generated JSON endpoint."))
-           (expansion (macroexpand-1 form)))
-      (assert (eq (quote defun) (first expansion)))
-      (assert (eq (quote generated-json-endpoint) (second expansion)))
-      (assert (equal (quote (ollama-kit::client &key ollama-kit::timeout ollama-kit::headers))
-                     (third expansion)))
-      (assert (equal "Generated JSON endpoint." (fourth expansion)))
-      (assert (equal (list (quote ollama-kit::%request-json-value)
-                           (quote ollama-kit::client)
-                           (quote (quote :post))
-                           (quote (quote "/coverage"))
-                           :timeout
-                           (quote ollama-kit::timeout)
-                           :headers
-                           (quote ollama-kit::headers))
-                     (fifth expansion))))
-    (handler-case
-        (progn
-          (macroexpand-1
-           (quote (ollama-kit::define-json-endpoint
-                   (function list)
-                   generated-invalid-endpoint
-                   (ollama-kit::client &key ollama-kit::timeout ollama-kit::headers)
-                   :get
-                   "/invalid")))
-          (assert nil))
-      (program-error () t)))
-  (it "expands each event stream consumer with its wire contract"
-  (dolist
-      (contract
-       '((ollama-kit::call-with-openai-stream
-          :sse
-          "text/event-stream"
-          "Consume OpenAI-compatible SSE events synchronously.
+          (it "expands JSON endpoints and rejects non-symbol request functions"
+              (let* ((form
+                      (list (quote ollama-kit::define-json-endpoint)
+                            (quote ollama-kit::%request-json-value)
+                            (quote generated-json-endpoint)
+                            (quote
+                             (ollama-kit::client &key
+                                                 ollama-kit::timeout
+                                                 ollama-kit::headers))
+                            :post
+                            "/coverage"
+                            :documentation
+                            "Generated JSON endpoint."))
+                     (expansion (macroexpand-1 form)))
+                (assert (eq (quote defun) (first expansion)))
+                (assert (eq (quote generated-json-endpoint) (second expansion)))
+                (assert
+                 (equal
+                  (quote
+                   (ollama-kit::client &key
+                                       ollama-kit::timeout
+                                       ollama-kit::headers))
+                  (third expansion)))
+                (assert (equal "Generated JSON endpoint." (fourth expansion)))
+                (assert
+                 (equal
+                  (list (quote ollama-kit::%request-json-value)
+                        (quote ollama-kit::client)
+                        (quote (quote :post))
+                        (quote (quote "/coverage"))
+                        :timeout
+                        (quote ollama-kit::timeout)
+                        :headers
+                        (quote ollama-kit::headers))
+                  (fifth expansion))))
+              (handler-case (progn
+                              (macroexpand-1
+                               (quote
+                                (ollama-kit::define-json-endpoint
+                                 (function list)
+                                 generated-invalid-endpoint
+                                 (ollama-kit::client &key
+                                                     ollama-kit::timeout
+                                                     ollama-kit::headers)
+                                 :get
+                                 "/invalid")))
+                              (assert nil))
+                (program-error ()
+                  t)))
+          (it "expands each event stream consumer with its wire contract"
+              (dolist
+                  (contract
+                   '((ollama-kit::call-with-openai-stream :sse
+                                                          "text/event-stream"
+                                                          "Consume OpenAI-compatible SSE events synchronously.
 
 EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
 the active request and complete normally. The HTTP response is closed before
 this function returns.")
-         (ollama-kit::call-with-ollama-stream
-          :ndjson
-          "application/x-ndjson"
-          "Consume native Ollama NDJSON events synchronously.
+                     (ollama-kit::call-with-ollama-stream :ndjson
+                                                          "application/x-ndjson"
+                                                          "Consume native Ollama NDJSON events synchronously.
 
 EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
 the active request and complete normally. The HTTP response is closed before
 this function returns.")
-         (ollama-kit::call-with-anthropic-stream
-          :sse
-          "text/event-stream"
-          "Consume Anthropic-compatible SSE events synchronously.
+                     (ollama-kit::call-with-anthropic-stream :sse
+                                                             "text/event-stream"
+                                                             "Consume Anthropic-compatible SSE events synchronously.
 
 EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
 the active request and complete normally. The HTTP response is closed before
 this function returns.")))
-    (destructuring-bind (name wire-format content-type documentation)
-        contract
-      (let* ((form
-              (list (quote ollama-kit::define-event-stream-consumer)
-                    name
-                    wire-format
-                    content-type
-                    documentation))
-             (expansion (macroexpand-1 form)))
-        (assert (eq (quote defun) (first expansion)))
-        (assert (eq name (second expansion)))
-        (assert
-         (equal
-          (quote (ollama-kit::client
-                  ollama-kit::method
-                  ollama-kit::path
-                  ollama-kit::event-function
-                  &rest
-                  ollama-kit::options))
-          (third expansion)))
-        (assert (equal documentation (fourth expansion)))
-        (assert
-         (equal
-          (list (quote ollama-kit::%call-with-event-stream)
-                (quote ollama-kit::client)
-                (quote ollama-kit::method)
-                (quote ollama-kit::path)
-                wire-format
-                (quote ollama-kit::event-function)
-                content-type
-                (quote ollama-kit::options))
-          (fifth expansion))))))))
+                (destructuring-bind (name wire-format
+                                          content-type
+                                          documentation) contract
+                  (let* ((form
+                          (list (quote ollama-kit::define-event-stream-consumer)
+                                name
+                                wire-format
+                                content-type
+                                documentation))
+                         (expansion (macroexpand-1 form)))
+                    (assert (eq (quote defun) (first expansion)))
+                    (assert (eq name (second expansion)))
+                    (assert
+                     (equal
+                      (quote
+                       (ollama-kit::client ollama-kit::method
+                                           ollama-kit::path
+                                           ollama-kit::event-function
+                                           &rest
+                                           ollama-kit::options))
+                      (third expansion)))
+                    (assert (equal documentation (fourth expansion)))
+                    (assert
+                     (equal
+                      (list (quote ollama-kit::%call-with-event-stream)
+                            (quote ollama-kit::client)
+                            (quote ollama-kit::method)
+                            (quote ollama-kit::path)
+                            wire-format
+                            (quote ollama-kit::event-function)
+                            content-type
+                            (quote ollama-kit::options))
+                      (fifth expansion))))))))
 
 (describe "argument and continuation contracts"
           (it "rejects unsafe OpenAI model names"
@@ -273,29 +285,30 @@ this function returns.")))
                   t))
               (dolist
                   (declaration
-                   '((ollama-kit::define-json-endpoint ollama-kit::%request-json-value :endpoint
-                                                              (client &key
-                                                                      timeout
-                                                                      headers)
-                                                              :get
-                                                              "/version")
-                     (ollama-kit::define-json-endpoint ollama-kit::%request-json-value endpoint
-                                                              (&key timeout
-                                                                    headers)
-                                                              :get
-                                                              "/version")
-                     (ollama-kit::define-json-endpoint ollama-kit::%request-json-value endpoint
-                                                              (client &key
-                                                                      timeout
-                                                                      headers)
-                                                              get
-                                                              "/version")
-                     (ollama-kit::define-json-endpoint ollama-kit::%request-json-value endpoint
-                                                              (client &key
-                                                                      timeout
-                                                                      headers)
-                                                              :get
-                                                              "version")
+                   '((ollama-kit::define-json-endpoint
+                      ollama-kit::%request-json-value
+                      :endpoint
+                      (client &key timeout headers)
+                      :get
+                      "/version")
+                     (ollama-kit::define-json-endpoint
+                      ollama-kit::%request-json-value
+                      endpoint
+                      (&key timeout headers)
+                      :get
+                      "/version")
+                     (ollama-kit::define-json-endpoint
+                      ollama-kit::%request-json-value
+                      endpoint
+                      (client &key timeout headers)
+                      get
+                      "/version")
+                     (ollama-kit::define-json-endpoint
+                      ollama-kit::%request-json-value
+                      endpoint
+                      (client &key timeout headers)
+                      :get
+                      "version")
                      (ollama-kit::define-openai-stream-endpoint endpoint
                                                                 (client &key
                                                                         timeout
@@ -351,16 +364,20 @@ this function returns.")))
                  nil)))
               (let* ((lambda-list '(client &key timeout headers))
                      (body-form
-                       '(lambda (stream-p)
-                          (ollama-kit::%json-object
-                           (cons "body-mode" (if stream-p "stream" "json")))))
-                     (form (list 'ollama-kit::define-native-stream-pair
-                                 'generated-endpoint
-                                 'generated-stream
-                                 lambda-list
-                                 :post
-                                 "/generate"
-                                 body-form))
+                      '(lambda (stream-p)
+                         (ollama-kit::%json-object
+                          (cons "body-mode"
+                                (if stream-p
+                                    "stream"
+                                    "json")))))
+                     (form
+                      (list 'ollama-kit::define-native-stream-pair
+                            'generated-endpoint
+                            'generated-stream
+                            lambda-list
+                            :post
+                            "/generate"
+                            body-form))
                      (expansion (macroexpand-1 form))
                      (json-definition (second expansion))
                      (stream-definition (third expansion)))
@@ -371,63 +388,75 @@ this function returns.")))
                 (assert (eq 'defun (first stream-definition)))
                 (assert (eq 'generated-stream (second stream-definition)))
                 (assert
-                 (equal '(client ollama-kit::event-function &key timeout headers
-                          (ollama-kit::response-timeout
-                           ollama-kit::+timeout-unspecified+)
-                          (ollama-kit::idle-timeout
-                           ollama-kit::+timeout-unspecified+)
-                          ollama-kit::cancel-token)
-                        (third stream-definition)))
+                 (equal
+                  '(client ollama-kit::event-function
+                           &key
+                           timeout
+                           headers
+                           (ollama-kit::response-timeout
+                            ollama-kit::+timeout-unspecified+)
+                           (ollama-kit::idle-timeout
+                            ollama-kit::+timeout-unspecified+)
+                           ollama-kit::cancel-token)
+                  (third stream-definition)))
                 (eval
-                  '(ollama-kit::define-native-stream-pair
-                    generated-endpoint
-                    generated-stream
-                    (client &key timeout headers)
-                    :post
-                    "/generate"
-                    (lambda (stream-p)
-                      (ollama-kit::%json-object
-                       (cons "body-mode" (if stream-p "stream" "json"))))))
+                 '(ollama-kit::define-native-stream-pair generated-endpoint
+                                                         generated-stream
+                                                         (client &key
+                                                                 timeout
+                                                                 headers)
+                                                         :post
+                                                         "/generate"
+                                                         (lambda (stream-p)
+                                                           (ollama-kit::%json-object
+                                                            (cons "body-mode"
+                                                                  (if stream-p
+                                                                      "stream"
+                                                                      "json"))))))
                 (let* ((json-body (make-hash-table :test (quote equal)))
-                      (stream-body (make-hash-table :test (quote equal)))
-                      (stream-event (make-hash-table :test (quote equal)))
-                      (client
-                       (client-with-request-function
-                        (lambda (request &key timeout)
-                          (declare (ignore timeout))
-                          (let ((body (request-json-object request)))
-                            (if (equal "stream" (gethash "body-mode" body))
-                                (setf stream-body body)
-                                (setf json-body body)))
-                          (response-with-text (format nil "{\"event\":\"observed\"}~%"))))))
+                       (stream-body (make-hash-table :test (quote equal)))
+                       (stream-event (make-hash-table :test (quote equal)))
+                       (client
+                        (client-with-request-function
+                         (lambda (request &key timeout)
+                           (declare (ignore timeout))
+                           (let ((body (request-json-object request)))
+                             (if (equal "stream" (gethash "body-mode" body))
+                                 (setf stream-body body)
+                                 (setf json-body body)))
+                           (response-with-text
+                            (format nil "{\"event\":\"observed\"}~%"))))))
                   (unwind-protect
-                       (progn
-                         (let ((json-result
-                                 (funcall (symbol-function 'generated-endpoint)
-                                          client
-                                          :timeout
-                                          5
-                                          :headers
-                                          nil)))
-                           (assert (equal "observed" (gethash "event" json-result))))
-                         (funcall (symbol-function 'generated-stream)
-                                  client
-                                  (lambda (event)
-                                    (setf stream-event event)
-                                    :stop)
-                                  :timeout
-                                  5
-                                  :headers
-                                  nil
-                                  :response-timeout
-                                  5
-                                  :idle-timeout
-                                  5
-                                  :cancel-token
-                                  (http-kit/client:make-http-cancellation-token))
-                         (assert (equal "json" (gethash "body-mode" json-body)))
-                         (assert (equal "stream" (gethash "body-mode" stream-body)))
-                         (assert (equal "observed" (gethash "event" stream-event))))
+                      (progn
+                        (let ((json-result
+                               (funcall (symbol-function 'generated-endpoint)
+                                        client
+                                        :timeout
+                                        5
+                                        :headers
+                                        nil)))
+                          (assert
+                           (equal "observed" (gethash "event" json-result))))
+                        (funcall (symbol-function 'generated-stream)
+                                 client
+                                 (lambda (event)
+                                   (setf stream-event event)
+                                   :stop)
+                                 :timeout
+                                 5
+                                 :headers
+                                 nil
+                                 :response-timeout
+                                 5
+                                 :idle-timeout
+                                 5
+                                 :cancel-token
+                                 (http-kit/client:make-http-cancellation-token))
+                        (assert (equal "json" (gethash "body-mode" json-body)))
+                        (assert
+                         (equal "stream" (gethash "body-mode" stream-body)))
+                        (assert
+                         (equal "observed" (gethash "event" stream-event))))
                     (close-client client))))
               (dolist
                   (body-form
@@ -466,15 +495,32 @@ this function returns.")))
           (it-each
            (("event function position"
              ollama-kit::%stream-endpoint-lambda-list-error
-             (client body &key timeout headers cancel-token response-timeout idle-timeout)
+             (client body
+                     &key
+                     timeout
+                     headers
+                     cancel-token
+                     response-timeout
+                     idle-timeout)
              "Stream endpoint lambda list requires an event function before &key.")
-            ("missing &key"
-             ollama-kit::%stream-endpoint-lambda-list-error
-             (client body event-function timeout headers cancel-token response-timeout idle-timeout)
-             "Stream endpoint lambda list requires &key.")
+            ("missing &key" ollama-kit::%stream-endpoint-lambda-list-error
+                            (client body
+                                    event-function
+                                    timeout
+                                    headers
+                                    cancel-token
+                                    response-timeout
+                                    idle-timeout)
+                            "Stream endpoint lambda list requires &key.")
             ("missing CANCEL-TOKEN"
              ollama-kit::%stream-endpoint-lambda-list-error
-             (client body event-function &key timeout headers response-timeout idle-timeout)
+             (client body
+                     event-function
+                     &key
+                     timeout
+                     headers
+                     response-timeout
+                     idle-timeout)
              "Stream endpoint lambda list requires CANCEL-TOKEN."))
            "rejects ~A lambda lists for native stream endpoint macros"
            (reason expected-condition-type lambda-list expected-message)
@@ -483,52 +529,76 @@ this function returns.")))
                 '(ollama-kit::define-openai-stream-endpoint
                   ollama-kit::define-anthropic-stream-endpoint))
              (let ((condition nil))
-               (handler-case
-                   (macroexpand-1
-                    (list macro
-                          'generated-invalid-stream-endpoint
-                          lambda-list
-                          :post
-                          "/stream"))
+               (handler-case (macroexpand-1
+                              (list macro
+                                    'generated-invalid-stream-endpoint
+                                    lambda-list
+                                    :post
+                                    "/stream"))
                  (ollama-kit::%stream-endpoint-lambda-list-error (caught)
                    (setf condition caught)))
                (assert (typep condition expected-condition-type))
                (assert (typep condition 'program-error))
-               (assert
-                (string= expected-message (princ-to-string condition))))))
+               (assert (string= expected-message (princ-to-string condition))))))
           (it-each
            (("RESPONSE-TIMEOUT"
-             (client body event-function &key timeout headers idle-timeout cancel-token))
+             (client body
+                     event-function
+                     &key
+                     timeout
+                     headers
+                     idle-timeout
+                     cancel-token))
             ("IDLE-TIMEOUT"
-             (client body event-function &key timeout headers response-timeout cancel-token)))
+             (client body
+                     event-function
+                     &key
+                     timeout
+                     headers
+                     response-timeout
+                     cancel-token)))
            "rejects native stream endpoints without ~A"
            (missing-timeout lambda-list)
            (dolist
                (macro
-                (quote (ollama-kit::define-openai-stream-endpoint
-                        ollama-kit::define-anthropic-stream-endpoint)))
+                (quote
+                 (ollama-kit::define-openai-stream-endpoint
+                  ollama-kit::define-anthropic-stream-endpoint)))
              (let ((condition nil))
-               (handler-case
-                   (macroexpand-1
-                    (list macro
-                          (quote generated-invalid-stream-endpoint)
-                          lambda-list
-                          :post
-                          "/stream"))
+               (handler-case (macroexpand-1
+                              (list macro
+                                    (quote generated-invalid-stream-endpoint)
+                                    lambda-list
+                                    :post
+                                    "/stream"))
                  (program-error (caught)
                    (setf condition caught)))
                (assert (typep condition (quote program-error))))))
           (it-each
-           ((ollama-kit::define-openai-stream-endpoint
-             generated-openai-stream
-             (client body event-function &key timeout response-timeout idle-timeout headers cancel-token))
+           ((ollama-kit::define-openai-stream-endpoint generated-openai-stream
+                                                       (client body
+                                                               event-function
+                                                               &key
+                                                               timeout
+                                                               response-timeout
+                                                               idle-timeout
+                                                               headers
+                                                               cancel-token))
             (ollama-kit::define-anthropic-stream-endpoint
              generated-anthropic-stream
-             (client body event-function &key timeout response-timeout idle-timeout headers cancel-token)))
+             (client body
+                     event-function
+                     &key
+                     timeout
+                     response-timeout
+                     idle-timeout
+                     headers
+                     cancel-token)))
            "expands ~A stream endpoint names and lambda lists"
            (macro expected-name lambda-list)
            (let ((expansion
-                   (macroexpand-1 (list macro expected-name lambda-list :post "/stream"))))
+                  (macroexpand-1
+                   (list macro expected-name lambda-list :post "/stream"))))
              (assert (eq 'defun (first expansion)))
              (assert (eq expected-name (second expansion)))
              (assert (equal lambda-list (third expansion))))))

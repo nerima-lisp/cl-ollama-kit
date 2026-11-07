@@ -12,14 +12,13 @@
 (defun %openai-stream-body (body)
   (%json-object-with-field body "stream" t))
 
-(define-json-endpoint %request-json-value openai-models
-                             (client &key
-                                     (timeout +timeout-unspecified+)
-                                     headers)
-                             :get
-                             "/models"
-                             :documentation
-                             "List models through `/v1/models`.")
+(define-json-endpoint %request-json-value
+                      openai-models
+                      (client &key (timeout +timeout-unspecified+) headers)
+                      :get
+                      "/models"
+                      :documentation
+                      "List models through `/v1/models`.")
 
 (defun %openai-model-has-path-separator-p (model)
   (or (find #\/ model)
@@ -49,8 +48,7 @@
 (defun openai-model (client model &key (timeout +timeout-unspecified+) headers)
   "Return one model description through `/v1/models/{model}`."
   (let* ((validated-model (%validate-openai-model-name model))
-         (encoded-model
-          (http-kit/client:http-percent-encode validated-model)))
+         (encoded-model (http-kit/client:http-percent-encode validated-model)))
     (%request-json-value client
                          :get
                          (format nil "/models/~A" encoded-model)
@@ -59,20 +57,19 @@
                          :headers
                          headers)))
 
-(define-json-endpoint %request-json-value openai-chat-completions
-                             (client body
-                                     &key
-                                     (timeout +timeout-unspecified+)
-                                     headers)
-                             :post
-                             "/chat/completions"
-                             :body-form
-                             body
-                             :documentation
-                             "Create a chat completion using a JSON object BODY.")
+(define-json-endpoint %request-json-value
+                      openai-chat-completions
+                      (client body &key (timeout +timeout-unspecified+) headers)
+                      :post
+                      "/chat/completions"
+                      :body-form
+                      body
+                      :documentation
+                      "Create a chat completion using a JSON object BODY.")
 
 (define-openai-stream-endpoint openai-chat-completions-stream
-                               (client body event-function
+                               (client body
+                                       event-function
                                        &key
                                        (timeout +timeout-unspecified+)
                                        (response-timeout +timeout-unspecified+)
@@ -84,20 +81,19 @@
                                :documentation
                                "Stream a chat completion using an OpenAI-compatible request BODY.")
 
-(define-json-endpoint %request-json-value openai-completions
-                             (client body
-                                     &key
-                                     (timeout +timeout-unspecified+)
-                                     headers)
-                             :post
-                             "/completions"
-                             :body-form
-                             body
-                             :documentation
-                             "Create a text completion using an OpenAI-compatible request BODY.")
+(define-json-endpoint %request-json-value
+                      openai-completions
+                      (client body &key (timeout +timeout-unspecified+) headers)
+                      :post
+                      "/completions"
+                      :body-form
+                      body
+                      :documentation
+                      "Create a text completion using an OpenAI-compatible request BODY.")
 
 (define-openai-stream-endpoint openai-completions-stream
-                               (client body event-function
+                               (client body
+                                       event-function
                                        &key
                                        (timeout +timeout-unspecified+)
                                        (response-timeout +timeout-unspecified+)
@@ -109,32 +105,29 @@
                                :documentation
                                "Stream a text completion using an OpenAI-compatible request BODY.")
 
-(define-json-endpoint %request-json-value openai-embeddings
-                             (client body
-                                     &key
-                                     (timeout +timeout-unspecified+)
-                                     headers)
-                             :post
-                             "/embeddings"
-                             :body-form
-                             body
-                             :documentation
-                             "Create embeddings using an OpenAI-compatible request BODY.")
+(define-json-endpoint %request-json-value
+                      openai-embeddings
+                      (client body &key (timeout +timeout-unspecified+) headers)
+                      :post
+                      "/embeddings"
+                      :body-form
+                      body
+                      :documentation
+                      "Create embeddings using an OpenAI-compatible request BODY.")
 
-(define-json-endpoint %request-json-value openai-responses
-                             (client body
-                                     &key
-                                     (timeout +timeout-unspecified+)
-                                     headers)
-                             :post
-                             "/responses"
-                             :body-form
-                             body
-                             :documentation
-                             "Create a response through Ollama's experimental `/v1/responses` API.")
+(define-json-endpoint %request-json-value
+                      openai-responses
+                      (client body &key (timeout +timeout-unspecified+) headers)
+                      :post
+                      "/responses"
+                      :body-form
+                      body
+                      :documentation
+                      "Create a response through Ollama's experimental `/v1/responses` API.")
 
 (define-openai-stream-endpoint openai-responses-stream
-                               (client body event-function
+                               (client body
+                                       event-function
                                        &key
                                        (timeout +timeout-unspecified+)
                                        (response-timeout +timeout-unspecified+)
@@ -146,14 +139,12 @@
                                :documentation
                                "Stream a response through Ollama's experimental `/v1/responses` API.")
 
-(define-json-endpoint %request-json-value openai-images
-                             (client body
-                                     &key
-                                     (timeout +timeout-unspecified+)
-                                     headers)
-                             :post
-                             "/images/generations"
-                             :body-form
-                             body
-                             :documentation
-                             "Generate images through Ollama's experimental `/v1/images/generations` API.")
+(define-json-endpoint %request-json-value
+                      openai-images
+                      (client body &key (timeout +timeout-unspecified+) headers)
+                      :post
+                      "/images/generations"
+                      :body-form
+                      body
+                      :documentation
+                      "Generate images through Ollama's experimental `/v1/images/generations` API.")

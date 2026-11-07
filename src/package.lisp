@@ -57,4 +57,3 @@
    ;; Anthropic-compatible API.
    #:make-anthropic-client #:anthropic-messages
    #:anthropic-messages-stream #:call-with-ollama-stream #:call-with-openai-stream #:call-with-anthropic-stream))
-
