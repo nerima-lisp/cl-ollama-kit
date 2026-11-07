@@ -20,8 +20,7 @@
     };
 
     paredit-cli = {
-      url = "github:nerima-lisp/paredit-cli/v1.6.0";
-      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:nerima-lisp/paredit-cli/v1.7.1";
       inputs.treefmt-nix.follows = "treefmt-nix";
     };
 

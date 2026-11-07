@@ -590,6 +590,22 @@
         "type": "github"
       }
     },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1785571196,
+        "narHash": "sha256-KoTsyMQqnXQZq8deCEnu4QkyldkwH/bpMMhUcfMdGIw=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "148bab9c1c3c53136ecb44a6ea356a0ed5b39b06",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "paredit-cli": {
       "inputs": {
         "crane": "crane",
@@ -644,25 +660,23 @@
     "paredit-cli_3": {
       "inputs": {
         "crane": "crane_3",
-        "nixpkgs": [
-          "nixpkgs"
-        ],
+        "nixpkgs": "nixpkgs_2",
         "rust-overlay": "rust-overlay_3",
         "treefmt-nix": [
           "treefmt-nix"
         ]
       },
       "locked": {
-        "lastModified": 1786212082,
-        "narHash": "sha256-u4crwztGRtT9tDGgZcUcIvNm7lqtoS9DXJFx27q9U9E=",
+        "lastModified": 1791722364,
+        "narHash": "sha256-0xS92nQS96/45SSECGANS8tnacLVFXpNnp+LY/ZsEwU=",
         "owner": "nerima-lisp",
         "repo": "paredit-cli",
-        "rev": "f7a09d3768b2687faed0b325f8d838c9444af85d",
+        "rev": "32d9dce56e5d2b6c2c369d36d54687f2053cb397",
         "type": "github"
       },
       "original": {
         "owner": "nerima-lisp",
-        "ref": "v1.6.0",
+        "ref": "v1.7.1",
         "repo": "paredit-cli",
         "type": "github"
       }
