@@ -80,7 +80,7 @@
       ("unterminated event" (format nil "data: {\"ok\":true}~%") 0))
      "emits ~A at EOF according to the blank-line terminator rule"
      (ending wire expected-count)
-     (let ((events nil)
+     (let* ((events nil)
            (parser (ollama-kit::%make-stream-parser
                     :sse
                     128

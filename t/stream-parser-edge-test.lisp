@@ -19,7 +19,7 @@
     ("EOF" "{\"id\":1}"))
    "decodes one JSON record terminated by ~A"
    (ending wire)
-   (let ((events nil)
+   (let* ((events nil)
          (parser (ollama-kit::%make-stream-parser
                   :ndjson
                   128
@@ -115,7 +115,7 @@
                  (ollama-kit::%feed-stream-parser
                   condition-parser
                   (%stream-test-octets (format nil "{\"n\":1}~%")))))))
-    (let ((events nil)
+    (let* ((events nil)
           (parser (ollama-kit::%make-stream-parser
                    :ndjson
                    128
