@@ -29,10 +29,6 @@
          :https)
      uri)))
 
-(defun %validate-http-request-url (url)
-  (%validate-http-url-components url "HTTP request URLs")
-  url)
-
 (defun %validate-base-url (base-url allow-insecure-http)
   (multiple-value-bind (scheme uri)
       (%validate-http-url-components base-url "BASE-URL")
