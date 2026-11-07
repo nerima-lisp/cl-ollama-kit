@@ -2,12 +2,12 @@
 
 (describe "stream callback option edge cases"
           (it-each
-           (("Ollama response" (function call-with-ollama-stream) :response-timeout)
-            ("Ollama idle" (function call-with-ollama-stream) :idle-timeout)
-            ("OpenAI response" (function call-with-openai-stream) :response-timeout)
-            ("OpenAI idle" (function call-with-openai-stream) :idle-timeout)
-            ("Anthropic response" (function call-with-anthropic-stream) :response-timeout)
-            ("Anthropic idle" (function call-with-anthropic-stream) :idle-timeout))
+           (("Ollama response" call-with-ollama-stream :response-timeout)
+            ("Ollama idle" call-with-ollama-stream :idle-timeout)
+            ("OpenAI response" call-with-openai-stream :response-timeout)
+            ("OpenAI idle" call-with-openai-stream :idle-timeout)
+            ("Anthropic response" call-with-anthropic-stream :response-timeout)
+            ("Anthropic idle" call-with-anthropic-stream :idle-timeout))
            "rejects invalid ~A timeout before transport"
            (name stream-function timeout-option)
            (let ((client (make-client)))
