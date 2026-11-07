@@ -1,5 +1,20 @@
 (in-package #:ollama-kit/test)
 
+(defun %parsed-http-url-valid-p (url)
+  (handler-case (ollama-kit::%validate-http-url-components url "HTTP URLs")
+    (ollama-kit:ollama-argument-error ()
+      nil)))
+
+(defun %parsed-http-authority-valid-p (authority)
+  (%parsed-http-url-valid-p (format nil "http://~A/api" authority)))
+
+(defun %parsed-http-port-valid-p (port)
+  (%parsed-http-authority-valid-p (format nil "example.test:~A" port)))
+
+(defun %parsed-http-request-url (url)
+  (ollama-kit::%validate-http-url-components url "HTTP request URLs")
+  url)
+
 (describe "HTTP validation contracts"
           (it-each
            (("request query" :request "http://example.test/api?limit=1" :accept)
@@ -38,12 +53,10 @@
                        (lambda ()
                          (ollama-kit::%validate-base-url url nil))
                        (lambda ()
-                         (ollama-kit::%validate-http-request-url url)))))
+                         (%parsed-http-request-url url)))))
              (if (eq outcome :accept)
                  (assert (equal url (funcall validator)))
-                 (assert
-                  (%signals-p (find-symbol "OLLAMA-ARGUMENT-ERROR" :ollama-kit)
-                              validator)))))
+                 (assert (%signals-p (quote ollama-argument-error) validator)))))
           (it "normalizes methods and headers while rejecting unsafe values"
               (assert (eq :post (ollama-kit::%normalize-method :post)))
               (assert (eq :post (ollama-kit::%normalize-method 'post)))
@@ -147,42 +160,39 @@
                   (ollama-kit::%base-url-loopback-p "http://user@localhost")))
                 (assert
                  (not (ollama-kit::%base-url-loopback-p "https://example.test")))
-                (assert (ollama-kit::%decimal-port-p "0"))
-                (assert (ollama-kit::%decimal-port-p "65535"))
-                (assert (not (ollama-kit::%decimal-port-p "")))
-                (assert (not (ollama-kit::%decimal-port-p "65536")))
-                (assert (not (ollama-kit::%decimal-port-p "12é")))
+                (assert (%parsed-http-port-valid-p "0"))
+                (assert (%parsed-http-port-valid-p "65535"))
+                (assert (not (%parsed-http-port-valid-p "")))
+                (assert (not (%parsed-http-port-valid-p "65536")))
+                (assert (not (%parsed-http-port-valid-p "12é")))
                 (assert
                  (not
-                  (ollama-kit::%decimal-port-p
+                  (%parsed-http-port-valid-p
                    (make-string 100000 :initial-element #\9))))
+                (assert (%parsed-http-authority-valid-p "example.test:443"))
+                (assert (%parsed-http-authority-valid-p "[2001:db8::1]:443"))
+                (assert (%parsed-http-authority-valid-p "[::1]"))
+                (assert (%parsed-http-authority-valid-p "[::1]:443"))
+                (assert (not (%parsed-http-authority-valid-p "")))
                 (assert
-                 (ollama-kit::%valid-host-authority-p "example.test:443"))
+                 (not (%parsed-http-authority-valid-p "user@example.test")))
                 (assert
-                 (ollama-kit::%valid-host-authority-p "[2001:db8::1]:443"))
-                (assert (ollama-kit::%valid-host-authority-p "[::1]"))
-                (assert (ollama-kit::%valid-host-authority-p "[::1]:443"))
-                (assert (not (ollama-kit::%valid-host-authority-p "")))
-                (assert
-                 (not (ollama-kit::%valid-host-authority-p "user@example.test")))
-                (assert
-                 (not (ollama-kit::%valid-host-authority-p "example.test:bad")))
-                (assert (not (ollama-kit::%valid-host-authority-p "[::1]x")))
-                (assert (not (ollama-kit::%valid-host-authority-p "[::1]:bad")))
+                 (not (%parsed-http-authority-valid-p "example.test:bad")))
+                (assert (not (%parsed-http-authority-valid-p "[::1]x")))
+                (assert (not (%parsed-http-authority-valid-p "[::1]:bad")))
                 (dolist (authority '("[::[1]" "example[.test" "example].test"))
-                  (assert (not (ollama-kit::%valid-host-authority-p authority))))
+                  (assert (not (%parsed-http-authority-valid-p authority))))
                 (assert
                  (equal "http://localhost:11434/api/x"
-                        (ollama-kit::%validate-http-request-url
+                        (%parsed-http-request-url
                          "http://localhost:11434/api/x")))
                 (assert
                  (equal "http://localhost:11434"
-                        (ollama-kit::%validate-http-request-url
-                         "http://localhost:11434")))
+                        (%parsed-http-request-url "http://localhost:11434")))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (ollama-kit::%validate-http-request-url "x"))))
+                               (%parsed-http-request-url "x"))))
                 (dolist
                     (url
                      '("ftp://localhost/x" "http:///x"
@@ -194,7 +204,7 @@
                   (assert
                    (%signals-p 'ollama-argument-error
                                (lambda ()
-                                 (ollama-kit::%validate-http-request-url url)))))
+                                 (%parsed-http-request-url url)))))
                 (assert
                  (equal "https://example.test/api"
                         (ollama-kit::%validate-base-url
@@ -342,7 +352,108 @@
                                   :test
                                   #'string=))))))))
 
-(it "native think keeps JSON booleans"
-    (assert (typep (ollama-kit::%native-think t) (quote (eql t))))
-    (assert (eq json-kit:+json-false+ (ollama-kit::%native-think nil)))
-    (assert (equal "low" (ollama-kit::%native-think :low))))
+(it-each (("true" t t) ("false" nil json-kit:+json-false+) ("enum" :low "low"))
+         "sends ~A think values in the native JSON body"
+         (name think expected)
+         (let* ((sent-request nil)
+                (client
+                 (client-with-request-function
+                  (lambda (request &key timeout)
+                    (declare (ignore timeout))
+                    (setf sent-request request)
+                    (response-with-text "{}")))))
+           (unwind-protect
+               (progn
+                 (generate client "fixture-model" "prompt" :think think)
+                 (multiple-value-bind (sent-think present-p)
+                     (gethash "think" (request-json-object sent-request))
+                   (assert present-p)
+                   (assert (equal expected sent-think))))
+             (close-client client))))
+
+(it "validates web-fetch URLs before transport and forwards query URLs"
+    (let* ((transport-count 0)
+           (seen-request nil)
+           (client
+            (client-with-request-function
+             (lambda (request &key timeout)
+               (declare (ignore timeout))
+               (incf transport-count)
+               (setf seen-request request)
+               (response-with-text "{}")))))
+      (unwind-protect
+          (progn
+            (dolist
+                (url
+                 (list "http://[::[1]/page" "https://user@example.test/page"))
+              (assert
+               (%signals-p (quote ollama-argument-error)
+                           (lambda ()
+                             (web-fetch client url))))
+              (assert (zerop transport-count)))
+            (web-fetch client "https://example.test/doc?x=1")
+            (assert (= 1 transport-count))
+            (assert
+             (equal "https://example.test/doc?x=1"
+                    (gethash "url" (request-json-object seen-request)))))
+        (close-client client))))
+
+(it "percent-encodes Unicode model names into one OpenAI path segment"
+    (let* ((seen-request nil)
+           (client
+            (client-with-request-function
+             (lambda (request &key timeout)
+               (declare (ignore timeout))
+               (setf seen-request request)
+               (response-with-text "{}"))
+             :base-url
+             ollama-kit::+openai-default-base-url+)))
+      (unwind-protect
+          (progn
+            (openai-model client "éあ😀")
+            (assert
+             (equal "/v1/models/%C3%A9%E3%81%82%F0%9F%98%80"
+                    (http-message-kit:http-request-target seen-request))))
+        (close-client client))))
+
+(it "forwards client transport and timeout options for OpenAI and Anthropic"
+    (let* ((http-client (http-kit/client:make-http-client :default-timeout nil))
+           (openai
+            (make-openai-client :http-client
+                                http-client
+                                :response-timeout
+                                17
+                                :idle-timeout
+                                9))
+           (anthropic
+            (make-anthropic-client :http-client
+                                   http-client
+                                   :response-timeout
+                                   13
+                                   :idle-timeout
+                                   5
+                                   :api-key
+                                   "anthropic-test-key")))
+      (unwind-protect
+          (progn
+            (assert (eq http-client (ollama-kit:client-http-client openai)))
+            (assert (= 17 (ollama-kit:client-response-timeout openai)))
+            (assert (= 9 (ollama-kit:client-idle-timeout openai)))
+            (assert (eq http-client (ollama-kit:client-http-client anthropic)))
+            (assert (= 13 (ollama-kit:client-response-timeout anthropic)))
+            (assert (= 5 (ollama-kit:client-idle-timeout anthropic)))
+            (assert
+             (equal "anthropic-test-key"
+                    (cdr
+                     (assoc "x-api-key"
+                            (ollama-kit:client-headers anthropic)
+                            :test
+                            (function string-equal))))))
+        (close-client openai)
+        (close-client anthropic))))
+
+(it "accepts mixed-case localhost for an HTTP base URL"
+    (assert (ollama-kit::%base-url-loopback-p "http://LOCALHOST"))
+    (assert
+     (equal "HtTp://LoCaLhOsT:11434/api"
+            (ollama-kit::%validate-base-url "HtTp://LoCaLhOsT:11434/api" nil))))

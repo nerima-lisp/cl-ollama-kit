@@ -22,8 +22,7 @@
             value))))
 
 (defun %native-think (value)
-  (cond
-    ((or (null value) (eq value t) (json-kit:json-false-p value))
-     (%native-bool value))
-    ((or (stringp value) (symbolp value)) (%json-enum value))
-    (t (%native-bool value))))
+  (if (and (or (stringp value) (symbolp value))
+           (not (or (eq value t) (null value) (json-kit:json-false-p value))))
+      (%json-enum value)
+      (%native-bool value)))
