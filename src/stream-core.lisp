@@ -36,20 +36,15 @@
                                        accept
                                        options)
   (unless (client-p client)
-    (error (quote ollama-argument-error)
-           :message
-           "CLIENT must be an Ollama client."))
+    (error 'ollama-argument-error :message "CLIENT must be an Ollama client."))
   (unless (functionp event-function)
-    (error (quote ollama-argument-error)
-           :message
-           "EVENT-FUNCTION must be a function."))
+    (error 'ollama-argument-error :message "EVENT-FUNCTION must be a function."))
   (%validate-keyword-options options
-                             (quote
-                              (:body :timeout
+                             '(:body :timeout
                                      :headers
                                      :cancel-token
                                      :response-timeout
-                                     :idle-timeout)))
+                                     :idle-timeout))
   (let* ((body-supplied-p (%keyword-option-supplied-p options :body))
          (body (%keyword-option options :body nil))
          (encoded-body
@@ -82,98 +77,91 @@
          (error-body nil)
          (self-cancelled-p nil)
          (response nil))
-    (when (not (eq response-timeout +timeout-unspecified+))
+    (unless (eq response-timeout +timeout-unspecified+)
       (%validate-timeout response-timeout))
-    (when (not (eq idle-timeout +timeout-unspecified+))
+    (unless (eq idle-timeout +timeout-unspecified+)
       (%validate-timeout idle-timeout))
-    (progn
-      (handler-case (setf response (apply (function send-http-request)
-                                          client
-                                          request
-                                          :timeout
-                                          (%request-timeout client timeout)
-                                          :cancel-token
-                                          cancel-token
-                                          :collect-body-p
-                                          nil
-                                          :on-response-headers
-                                          (lambda (status response-headers)
-                                            (declare (ignore
-                                                      response-headers))
-                                            (setf response-status status
-                                                  response-headers-received-p t)
-                                            (unless
-                                                (%stream-response-success-p
-                                                 status)
-                                              (setf error-body (%make-stream-error-body-buffer
-                                                                max-input-bytes))))
-                                          :on-body-chunk
-                                          (lambda (chunk)
-                                            (unless
-                                                response-headers-received-p
-                                              (error
-                                               (quote ollama-protocol-error)
-                                               :message
-                                               "HTTP body arrived before response headers."))
-                                            (if (%stream-response-success-p
-                                                 response-status)
-                                                (when
-                                                    (eq :stop
-                                                        (%feed-stream-parser
-                                                         parser
-                                                         chunk))
-                                                  (setf self-cancelled-p t)
-                                                  (http-kit/client:http-client-cancel-request
-                                                   cancel-token))
-                                              (%append-stream-error-body
-                                               error-body
-                                               chunk
-                                               max-input-bytes)))
-                                          (append
-                                           (when (not (eq response-timeout +timeout-unspecified+))
-                                             (list :response-timeout
-                                                   response-timeout))
-                                           (when (not (eq idle-timeout +timeout-unspecified+))
-                                             (list :idle-timeout
-                                                   idle-timeout)))))
-        (ollama-cancelled (condition)
-                          (if self-cancelled-p
-                              (return-from %call-with-event-stream
-                                           nil)
-                            (error condition)))
-        (http-kit/client:http-client-request-cancelled (condition)
-                                                       (if self-cancelled-p
-                                                           (return-from %call-with-event-stream
-                                                                        nil)
-                                                         (error (quote ollama-cancelled)
-                                                                :message
-                                                                "The Ollama stream was cancelled."
-                                                                :cause
-                                                                condition))))
-      (unless (http-response-p response)
-        (error (quote ollama-protocol-error)
-               :message
-               "HTTP transport did not return a response."
-               :detail
-               response))
-      (unless response-headers-received-p
-        (error (quote ollama-protocol-error)
-               :message
-               "HTTP transport omitted the response header callback."
-               :detail
-               response))
-      (if (%stream-response-success-p response-status)
-          (unless self-cancelled-p
-            (when (eq :stop (%finish-stream-parser parser))
-              (setf self-cancelled-p t)
-              (http-kit/client:http-client-cancel-request cancel-token)))
-        (setf response
-              (make-http-response
-               :protocol-version (http-response-protocol-version response)
-               :status (http-response-status response)
-               :reason (http-response-reason response)
-               :headers (http-response-headers response)
-               :trailers (http-response-trailers response)
-               :body error-body)))
-      (%ensure-success response client)
-      response)))
+    (handler-case (setf response (send-http-request client
+                                                    request
+                                                    :timeout
+                                                    (%request-timeout client
+                                                                      timeout)
+                                                    :cancel-token
+                                                    cancel-token
+                                                    :collect-body-p
+                                                    nil
+                                                    :on-response-headers
+                                                    (lambda
+                                                        (status
+                                                         response-headers)
+                                                      (declare (ignore
+                                                                response-headers))
+                                                      (setf response-status status
+                                                            response-headers-received-p t)
+                                                      (unless
+                                                          (%stream-response-success-p
+                                                           status)
+                                                        (setf error-body (%make-stream-error-body-buffer
+                                                                          max-input-bytes))))
+                                                    :on-body-chunk
+                                                    (lambda (chunk)
+                                                      (unless
+                                                          response-headers-received-p
+                                                        (error
+                                                         'ollama-protocol-error
+                                                         :message
+                                                         "HTTP body arrived before response headers."))
+                                                      (if (%stream-response-success-p
+                                                           response-status)
+                                                          (when
+                                                              (eq :stop
+                                                                  (%feed-stream-parser
+                                                                   parser
+                                                                   chunk))
+                                                            (setf self-cancelled-p t)
+                                                            (http-kit/client:http-client-cancel-request
+                                                             cancel-token))
+                                                          (%append-stream-error-body
+                                                           error-body
+                                                           chunk
+                                                           max-input-bytes)))
+                                                    :response-timeout
+                                                    response-timeout
+                                                    :idle-timeout
+                                                    idle-timeout))
+      (ollama-cancelled (condition)
+        (if self-cancelled-p
+            (return-from %call-with-event-stream)
+            (error condition))))
+    (unless (http-response-p response)
+      (error 'ollama-protocol-error
+             :message
+             "HTTP transport did not return a response."
+             :detail
+             response))
+    (unless response-headers-received-p
+      (error 'ollama-protocol-error
+             :message
+             "HTTP transport omitted the response header callback."
+             :detail
+             response))
+    (if (%stream-response-success-p response-status)
+        (unless self-cancelled-p
+          (when (eq :stop (%finish-stream-parser parser))
+            (setf self-cancelled-p t)
+            (http-kit/client:http-client-cancel-request cancel-token)))
+        (setf response (make-http-response :protocol-version
+                                           (http-response-protocol-version
+                                            response)
+                                           :status
+                                           (http-response-status response)
+                                           :reason
+                                           (http-response-reason response)
+                                           :headers
+                                           (http-response-headers response)
+                                           :trailers
+                                           (http-response-trailers response)
+                                           :body
+                                           error-body)))
+    (%ensure-success response client)
+    response))
