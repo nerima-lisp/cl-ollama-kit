@@ -107,12 +107,14 @@ in the measured source set."
     statistics))
 
 (let* ((root (project-directory))
-       (source-directory (merge-pathnames "src/" root))
-       (output-directory (coverage-directory))
-       (coverage-output (merge-pathnames "coverage.data" output-directory))
-       (report-directory (merge-pathnames "report/" output-directory))
-       (coverage-exclusions (declarative-coverage-exclusions source-directory))
-       (coverage-includes (list source-directory)))
+ (source-directory (merge-pathnames "src/" root))
+ (output-directory (coverage-directory))
+ (coverage-output (merge-pathnames "coverage.data" output-directory))
+ (report-directory (merge-pathnames "report/" output-directory))
+ (coverage-exclusions
+  (declarative-coverage-exclusions source-directory))
+ (coverage-includes (list source-directory))
+ (run-tests-error nil))
   (configure-local-source-registry root :include-test-dependencies t)
   (ensure-directories-exist coverage-output)
   ;; SB-COVER records forms when their FASLs are compiled under the policy.
@@ -123,20 +125,25 @@ in the measured source set."
   (unless (asdf:load-system "cl-ollama-kit/test")
     (error "Unable to load cl-ollama-kit/test"))
   (format t "~&Coverage artifacts: ~A~%" output-directory)
-  (uiop:symbol-call '#:ollama-kit/test '#:run-tests
-                    :coverage t
-                    :coverage-output coverage-output
-                    :coverage-report-directory report-directory
-                    :coverage-include-pathnames coverage-includes
-                    :coverage-exclude-pathnames coverage-exclusions
-                    :coverage-minimum-expression 100
-                    :coverage-minimum-branch 100
-                    ;; Keep counters collected while the instrumented system
-                    ;; is compiled and loaded.  The public cl-weave runner
-                    ;; starts after ASDF loading, so resetting here would
-                     ;; erase macro-expansion and compile-time coverage.
-                     :coverage-reset nil)
+  (handler-case
+    (uiop:symbol-call '#:ollama-kit/test '#:run-tests
+                      :coverage t
+                      :coverage-output coverage-output
+                      :coverage-report-directory report-directory
+                      :coverage-include-pathnames coverage-includes
+                      :coverage-exclude-pathnames coverage-exclusions
+                      :coverage-minimum-expression 100
+                      :coverage-minimum-branch 100
+                      ;; Keep counters collected while the instrumented system
+                      ;; is compiled and loaded.  The public cl-weave runner
+                      ;; starts after ASDF loading, so resetting here would
+                      ;; erase macro-expansion and compile-time coverage.
+                      :coverage-reset nil)
+  (error (condition)
+    (setf run-tests-error condition)))
   (ensure-positive-coverage-targets coverage-includes coverage-exclusions)
   (ensure-non-empty-file coverage-output "data")
   (ensure-non-empty-report report-directory)
-  (uiop:quit 0))
+  (if run-tests-error
+    (error run-tests-error)
+  (uiop:quit 0)))
