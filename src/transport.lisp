@@ -239,7 +239,7 @@ header with the same name. NIL suppresses the default header."
                                  &key
                                  timeout
                                  cancel-token
-                                 (collect-body-p nil)
+                                 collect-body-p
                                  on-response-headers
                                  on-body-chunk
                                  (response-timeout +timeout-unspecified+)
