@@ -109,7 +109,10 @@
                      (funcall operation client)))
                (request
                  (%assert-openai-loopback-request server :get path)))
-          (assert (null (http-message-kit:http-request-body request)))
+          (assert
+           (let ((body (http-message-kit:http-request-body request)))
+             (and (typep body '(vector (unsigned-byte 8)))
+                  (zerop (length body)))))
           (assert (equal expected-id (funcall response-reader value)))))))
 
     (it-each
@@ -155,7 +158,7 @@
        %openai-assert-chat-body
        %openai-chat-event-content
        "Hello"
-       '(("Accept" . "application/x-ndjson"))))
+       (("Accept" . "application/x-ndjson"))))
      "sends the ~A request body and delivers its callback event"
      (operation path request-body sse-payload request-checker event-reader expected-text request-headers)
      (%call-with-openai-loopback-response
