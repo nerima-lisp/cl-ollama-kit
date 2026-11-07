@@ -76,17 +76,20 @@
         (assert (loopback-http-server-listener-closed-p server))))
 
     (it-each
-     (("complete event" (format nil "data: {\"ok\":true}~%~%") 1)
-      ("unterminated event" (format nil "data: {\"ok\":true}~%") 0))
+     (("complete event" "data: {\"ok\":true}~%~%" 1)
+      ("unterminated event" "data: {\"ok\":true}~%" 0))
      "emits ~A at EOF according to the blank-line terminator rule"
-     (ending wire expected-count)
-     (let* ((events nil)
-           (parser (ollama-kit::%make-stream-parser
-                    :sse
-                    128
-                    (lambda (event)
-                      (push event events)))))
-       (ollama-kit::%feed-stream-parser parser (%sse-stream-test-octets wire))
+     (ending wire-template expected-count)
+     (let* ((wire (format nil wire-template))
+            (events nil)
+            (parser (ollama-kit::%make-stream-parser
+                     :sse
+                     128
+                     (lambda (event)
+                       (push event events)))))
+       (ollama-kit::%feed-stream-parser
+        parser
+        (%sse-stream-test-octets wire))
        (ollama-kit::%finish-stream-parser parser)
        (assert (= expected-count (length events)))
        (when (plusp expected-count)
@@ -104,9 +107,8 @@
                    (ollama-kit::%feed-stream-parser
                     parser
                     (%sse-stream-test-octets
-                     (format nil "data: {\"value\":true}~%~%")))))))
-
-    (it "propagates a callback condition without mapping it to a parser error"
+                     (format nil "data: {\"value\":true}~%~%"))))))))
+ (it "propagates a callback condition without mapping it to a parser error"
       (let ((parser (ollama-kit::%make-stream-parser
                      :sse
                      128
@@ -119,6 +121,6 @@
                    (ollama-kit::%feed-stream-parser
                     parser
                     (%sse-stream-test-octets
-                     (format nil "data: {\"ok\":true}~%~%"))))))))))
+                     (format nil "data: {\"ok\":true}~%~%")))))))))
 )
 
