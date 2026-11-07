@@ -30,7 +30,7 @@
       (assert caught)
       (assert (typep (ollama-transport-error-cause caught) 'simple-error))))
   (it "passes client defaults and explicit timeout values to the HTTP client"
-    (let ((seen-timeouts '())
+    (let* ((seen-timeouts '())
           (client
             (client-with-request-function
              (lambda (request &key timeout)
