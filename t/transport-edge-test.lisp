@@ -306,3 +306,124 @@
         (string= "application/octet-stream"
                  (http-message-kit:http-header-value headers "Content-Type")))
        (assert (null (http-message-kit:http-header-value headers "Accept")))))))
+
+(it "covers timeout outcomes and absent monitor callbacks"
+    (let* ((cancel-token (http-kit/client:make-http-cancellation-token))
+           (cancel-lock
+            (cl-concurrent-kit:make-lock :name
+                                         "cl-ollama-kit test timeout cancellation"))
+           (cancel-condition
+            (cl-concurrent-kit:make-condition-variable :name
+                                                       "cl-ollama-kit test timeout cancellation"))
+           (expiry-observed-p nil)
+           (condition nil))
+      (http-kit/client::%client-cancellation-token-register-handler cancel-token
+                                                                    (lambda ()
+                                                                      (cl-concurrent-kit:with-lock-held
+                                                                       (cancel-lock)
+                                                                       (setf expiry-observed-p t)
+                                                                       (cl-concurrent-kit:condition-notify
+                                                                        cancel-condition))))
+      (handler-case (ollama-kit::%call-with-http-timeout-monitor cancel-token
+                                                                 0
+                                                                 nil
+                                                                 nil
+                                                                 nil
+                                                                 (lambda
+                                                                     (response-header-callback
+                                                                      body-chunk-callback)
+                                                                   (declare (ignore
+                                                                             response-header-callback
+                                                                             body-chunk-callback))
+                                                                   (cl-concurrent-kit:with-lock-held
+                                                                    (cancel-lock)
+                                                                    (loop until expiry-observed-p
+                                                                          do (cl-concurrent-kit:condition-wait
+                                                                              cancel-condition
+                                                                              cancel-lock)))
+                                                                   :response))
+        (ollama-response-timeout (caught)
+          (setf condition caught)))
+      (assert condition)
+      (assert expiry-observed-p)
+      (assert
+       (string=
+        "HTTP response headers were not received before the response timeout."
+        (ollama-error-message condition))))
+    (let ((send-called-p nil))
+      (let ((response
+             (ollama-kit::%call-with-http-timeout-monitor nil
+                                                          nil
+                                                          nil
+                                                          nil
+                                                          nil
+                                                          (lambda
+                                                              (response-header-callback
+                                                               body-chunk-callback)
+                                                            (assert
+                                                             (null
+                                                              response-header-callback))
+                                                            (assert
+                                                             (null
+                                                              body-chunk-callback))
+                                                            (setf send-called-p t)
+                                                            :response))))
+        (assert send-called-p)
+        (assert (eq :response response))))
+    (let* ((cancel-token (http-kit/client:make-http-cancellation-token))
+           (cancel-lock
+            (cl-concurrent-kit:make-lock :name
+                                         "cl-ollama-kit test cancelled request"))
+           (cancel-condition
+            (cl-concurrent-kit:make-condition-variable :name
+                                                       "cl-ollama-kit test cancelled request"))
+           (cancellation-attempted-p nil)
+           (cancellation-result nil)
+           (condition nil))
+      (assert (http-kit/client:http-client-cancel-request cancel-token))
+      (handler-case (ollama-kit::%call-with-http-timeout-monitor cancel-token
+                                                                 0
+                                                                 nil
+                                                                 nil
+                                                                 nil
+                                                                 (lambda
+                                                                     (response-header-callback
+                                                                      body-chunk-callback)
+                                                                   (declare (ignore
+                                                                             response-header-callback
+                                                                             body-chunk-callback))
+                                                                   (cl-concurrent-kit:with-lock-held
+                                                                    (cancel-lock)
+                                                                    (loop until cancellation-attempted-p
+                                                                          do (cl-concurrent-kit:condition-wait
+                                                                              cancel-condition
+                                                                              cancel-lock)))
+                                                                   (error
+                                                                    'http-kit/client:http-client-request-cancelled
+                                                                    :message
+                                                                    "The HTTP request was cancelled."
+                                                                    :operation
+                                                                    :cancel))
+                                                                 :cancel-request-function
+                                                                 (lambda (token)
+                                                                   (let ((result
+                                                                          (http-kit/client:http-client-cancel-request
+                                                                           token)))
+                                                                     (cl-concurrent-kit:with-lock-held
+                                                                      (cancel-lock)
+                                                                      (setf cancellation-attempted-p t
+                                                                            cancellation-result result)
+                                                                      (cl-concurrent-kit:condition-notify
+                                                                       cancel-condition))
+                                                                     result)))
+        (ollama-cancelled (caught)
+          (setf condition caught)))
+      (assert condition)
+      (assert cancellation-attempted-p)
+      (assert (null cancellation-result))
+      (assert
+       (string= "The HTTP request was cancelled by the caller."
+                (ollama-error-message condition)))
+      (assert
+       (typep (ollama-transport-error-cause condition)
+              'http-kit/client:http-client-request-cancelled))))
