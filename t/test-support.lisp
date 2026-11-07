@@ -86,6 +86,7 @@
   (stream-closed-p nil)
   (stop-requested-p nil)
   (state-lock (sb-thread:make-mutex :name "loopback HTTP fixture state"))
+  (request-semaphore (sb-thread:make-semaphore :count 0))
   (eof-semaphore (sb-thread:make-semaphore :count 0)))
 
 (defun loopback-http-server-url (server)
@@ -127,6 +128,19 @@
                                     timeout-seconds)
        (loopback-http-server-eof-p server))))
 
+(defun loopback-http-server-await-request (server timeout-seconds)
+  (unless (and (realp timeout-seconds) (not (minusp timeout-seconds)))
+    (error
+     "Loopback request timeout must be a non-negative number of seconds, got ~S."
+     timeout-seconds))
+  (or (not (null (loopback-http-server-request server)))
+      (and
+       (sb-thread:wait-on-semaphore
+        (%loopback-http-server-request-semaphore server)
+        :timeout
+        timeout-seconds)
+       (not (null (loopback-http-server-request server))))))
+
 (defun %loopback-set-state (server slot value)
   (sb-thread:with-mutex ((%loopback-http-server-state-lock server))
                         (ecase slot
@@ -155,11 +169,16 @@
     new-eof-p))
 
 (defun %loopback-record-request (server request bytes)
-  (sb-thread:with-mutex ((%loopback-http-server-state-lock server))
-                        (unless (%loopback-http-server-request server)
-                          (setf (%loopback-http-server-request server) request
-                                (%loopback-http-server-request-bytes server) bytes))
-                        (incf (%loopback-http-server-request-count server))))
+  (let ((first-request-p nil))
+    (sb-thread:with-mutex ((%loopback-http-server-state-lock server))
+                          (unless (%loopback-http-server-request server)
+                            (setf (%loopback-http-server-request server) request
+                                  (%loopback-http-server-request-bytes server) bytes
+                                  first-request-p t))
+                          (incf (%loopback-http-server-request-count server)))
+    (when first-request-p
+      (sb-thread:signal-semaphore
+       (%loopback-http-server-request-semaphore server)))))
 
 (defun %loopback-record-error (server condition)
   (sb-thread:with-mutex ((%loopback-http-server-state-lock server))

@@ -19,14 +19,6 @@
     (error (condition)
       condition)))
 
-(defun %await-loopback-request (server seconds)
-  (let ((deadline
-         (+ (get-internal-real-time)
-            (ceiling (* seconds internal-time-units-per-second)))))
-    (loop (when (loopback-http-server-request server)
-            (return t)) (when (>= (get-internal-real-time) deadline)
-                          (return nil)) (sleep 0.005))))
-
 (defun %join-http-test-thread (thread seconds)
   (when thread
     (not
@@ -53,9 +45,7 @@
                       (assert
                        (http-kit/client:http-client-p
                         (client-http-client client)))
-                      (assert
-                       (http-message-kit:http-request-p
-                        (loopback-http-server-request server)))
+                      (assert (http-message-kit:http-request-p (loopback-http-server-request server)))
                       (assert (http-message-kit:http-response-p response))
                       (assert
                        (= 200 (http-message-kit:http-response-status response)))
@@ -279,7 +269,7 @@
                    (when cancel-token
                      (sb-thread:make-thread
                       (lambda ()
-                        (when (%await-loopback-request server 1)
+                        (when (loopback-http-server-await-request server 1)
                           (when
                               (and default-timeouts-p
                                    (eq behavior :stalled-body))
@@ -319,9 +309,7 @@
                    (%join-http-test-thread cancel-thread 2)))
              (unwind-protect
                  (progn
-                   (assert
-                    (http-message-kit:http-request-p
-                     (loopback-http-server-request server)))
+                   (assert (and (loopback-http-server-await-request server 5) (http-message-kit:http-request-p (loopback-http-server-request server))))
                    (ecase expected-kind
                      (:total
                        (assert (typep condition 'ollama-transport-error))
@@ -410,9 +398,7 @@
                       (cl-concurrent-kit:wait-on-semaphore callback-entered
                                                            :timeout
                                                            5))
-                     (assert
-                      (http-message-kit:http-request-p
-                       (loopback-http-server-request server)))
+                     (assert (http-message-kit:http-request-p (loopback-http-server-request server)))
                      (let ((monitor-threads
                             (remove-if-not
                              (lambda (thread)
