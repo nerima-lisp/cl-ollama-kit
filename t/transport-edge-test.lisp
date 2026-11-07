@@ -150,4 +150,22 @@
                        (ollama-http-error-body caught))))
       (assert (%signals-p 'ollama-api-error
                           (lambda ()
-                            (request-raw client :get "/version")))))))
+                            (request-raw client :get "/version"))))))
+  (it "maps bodyless HEAD 500 responses to Ollama HTTP errors"
+    (let ((client
+            (client-with-request-function
+             (lambda (request &key timeout)
+               (declare (ignore timeout))
+               (assert
+                (string-equal "HEAD"
+                              (http-message-kit:http-request-method request)))
+               (response nil :status 500)))))
+      (let ((caught nil))
+        (handler-case
+            (blob-exists-p client "sha256:bodyless")
+          (ollama-http-error (condition)
+            (setf caught condition)))
+        (assert caught)
+        (assert (= 500 (ollama-http-error-status caught)))
+        (assert (equal "" (ollama-http-error-body caught)))
+        (assert (not (typep caught 'ollama-api-error)))))))
