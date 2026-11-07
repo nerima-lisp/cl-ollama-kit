@@ -229,7 +229,7 @@
                             (equal expected-message
                                    (gethash "message" error-data)))
                            (assert
-                            (= expected-code (gethash "code" error-data))))
+                            (eql expected-code (gethash "code" error-data))))
                          (assert (equal expected-message error-data)))))
                  (:deliver
                    (assert (null condition))
@@ -238,7 +238,7 @@
                           (error-data (gethash "error" event)))
                      (assert (hash-table-p event))
                      (assert (hash-table-p error-data))
-                     (assert (= expected-code (gethash "code" error-data)))
+                     (assert (eql expected-code (gethash "code" error-data)))
                      (multiple-value-bind (message present-p)
                          (gethash "message" error-data)
                        (declare (ignore message))
