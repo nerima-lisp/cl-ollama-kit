@@ -20,10 +20,10 @@
   value)
 
 (defun %client-option-default (name)
-  (second (assoc name +client-option-table+)))
+  (second (assoc name *client-option-table*)))
 
 (defun %validate-client-options (option-values)
-  (loop for option in +client-option-table+
+  (loop for option in *client-option-table*
         for name = (first option)
         for validator = (third option)
         do (setf (getf option-values name) (funcall (symbol-function validator)
@@ -76,14 +76,14 @@
   value)
 
 (defun %client-option-values (options)
-  (loop for option in +client-option-table+
+  (loop for option in *client-option-table*
         for name = (first option)
         for default = (%client-option-default name)
         append (list name (%keyword-option options name default))))
 
 (defun make-client (&rest options)
   "Create a client backed by an owned or caller-supplied HTTP client."
-  (%validate-keyword-options options +client-option-keys+)
+  (%validate-keyword-options options *client-option-keys*)
   (let* ((option-values
           (%validate-client-options (%client-option-values options)))
          (base-url (getf option-values :base-url))
@@ -97,7 +97,7 @@
             (or configured-http-client
                 (http-kit/client:make-http-client :default-timeout nil)))
            (client-option-initargs
-            (loop for option in +client-option-table+
+            (loop for option in *client-option-table*
                   for name = (first option)
                   unless (eq name :api-key)
                     append (list name

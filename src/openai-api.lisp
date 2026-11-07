@@ -2,7 +2,7 @@
 
 (defun make-openai-client (&rest options)
   "Create a client for Ollama's OpenAI-compatible `/v1` API."
-  (%validate-keyword-options options +client-option-keys+)
+  (%validate-keyword-options options *client-option-keys*)
   (let ((client-options (copy-list options)))
     (setf (getf client-options :base-url) (%keyword-option options
                                                            :base-url

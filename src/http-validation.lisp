@@ -29,7 +29,7 @@
              "HTTP methods must be non-empty valid tokens."))
     (let* ((normalized-name (string-upcase name))
            (known-method
-            (assoc normalized-name +standard-http-methods+ :test #'string=)))
+            (assoc normalized-name *standard-http-methods* :test #'string=)))
       (or (cdr known-method) normalized-name))))
 
 (defun %normalize-header-name (name)

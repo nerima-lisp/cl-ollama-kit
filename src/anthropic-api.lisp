@@ -10,7 +10,7 @@
 
 API-KEY is installed as X-API-KEY.  Additional compatibility headers, such
 as ANTHROPIC-VERSION, can be supplied through HEADERS."
-  (%validate-keyword-options options +client-option-keys+)
+  (%validate-keyword-options options *client-option-keys*)
   (let* ((api-key (%keyword-option options :api-key nil))
          (client-options (copy-list options))
          (base-url

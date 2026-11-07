@@ -12,7 +12,7 @@
   "http://localhost:11434/v1"
   "The default Anthropic-compatible endpoint used by MAKE-ANTHROPIC-CLIENT.")
 
-(defparameter +client-option-table+
+(defparameter *client-option-table*
   (list (list :http-client nil '%validate-client-http-client-option)
         ;; Bounds the entire HTTP exchange; response and idle timeouts are
         ;; the default guards.
@@ -26,10 +26,10 @@
         (list :headers nil '%validate-client-headers-option)
         (list :base-url +default-base-url+ '%validate-client-base-url-option)))
 
-(defparameter +client-option-keys+
-  (mapcar #'first +client-option-table+))
+(defparameter *client-option-keys*
+  (mapcar #'first *client-option-table*))
 
-(defparameter +standard-http-methods+
+(defparameter *standard-http-methods*
   '(("ACL" . :acl) ("BASELINE-CONTROL" . :baseline-control)
     ("BIND" . :bind)
     ("CHECKIN" . :checkin)
@@ -87,22 +87,22 @@ become dynamically interned keywords.")
                          api-key-p
                          allow-insecure-http)))
   "Configuration and transport client for an Ollama client."
-  (base-url (second (assoc :base-url +client-option-table+)) :type string)
-  (http-client (second (assoc :http-client +client-option-table+)))
+  (base-url (second (assoc :base-url *client-option-table*)) :type string)
+  (http-client (second (assoc :http-client *client-option-table*)))
   (owned-http-client-p nil :type boolean)
-  (headers (second (assoc :headers +client-option-table+)))
-  (timeout (second (assoc :timeout +client-option-table+)))
-  (response-timeout (second (assoc :response-timeout +client-option-table+)))
-  (idle-timeout (second (assoc :idle-timeout +client-option-table+)))
-  (max-input-length (second (assoc :max-input-length +client-option-table+))
+  (headers (second (assoc :headers *client-option-table*)))
+  (timeout (second (assoc :timeout *client-option-table*)))
+  (response-timeout (second (assoc :response-timeout *client-option-table*)))
+  (idle-timeout (second (assoc :idle-timeout *client-option-table*)))
+  (max-input-length (second (assoc :max-input-length *client-option-table*))
                     :type
                     (integer 1 *))
-  (max-request-length (second (assoc :max-request-length +client-option-table+))
+  (max-request-length (second (assoc :max-request-length *client-option-table*))
                       :type
                       (integer 1 *))
-  (api-key-p (not (null (second (assoc :api-key +client-option-table+)))))
+  (api-key-p (not (null (second (assoc :api-key *client-option-table*)))))
   (allow-insecure-http
-   (second (assoc :allow-insecure-http +client-option-table+))))
+   (second (assoc :allow-insecure-http *client-option-table*))))
 
 (defparameter +json-unspecified+
   (gensym "JSON-UNSPECIFIED-"))
