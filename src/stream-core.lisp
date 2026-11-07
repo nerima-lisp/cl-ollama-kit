@@ -57,11 +57,17 @@
             (%encode-json body (client-max-request-length client))))
          (timeout (%keyword-option options :timeout +timeout-unspecified+))
          (response-timeout-supplied-p
-          (%keyword-option-supplied-p options :response-timeout))
+          (and (%keyword-option-supplied-p options :response-timeout)
+               (not (eq (%keyword-option options :response-timeout
+                                         +timeout-unspecified+)
+                        +timeout-unspecified+))))
          (response-timeout
           (%keyword-option options :response-timeout +timeout-unspecified+))
          (idle-timeout-supplied-p
-          (%keyword-option-supplied-p options :idle-timeout))
+          (and (%keyword-option-supplied-p options :idle-timeout)
+               (not (eq (%keyword-option options :idle-timeout
+                                         +timeout-unspecified+)
+                        +timeout-unspecified+))))
          (idle-timeout
           (%keyword-option options :idle-timeout +timeout-unspecified+))
          (headers (%keyword-option options :headers nil))
