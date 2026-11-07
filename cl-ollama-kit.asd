@@ -37,7 +37,6 @@
                (:file "http-decoding")
                (:file "transport")
                (:file "transport-response")
-               (:file "transport-scope")
                (:file "cps")
                (:file "stream-framing")
                (:file "stream-parser")

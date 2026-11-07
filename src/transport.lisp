@@ -72,32 +72,6 @@
           (%keyword-option options :content-type +json-unspecified+)
           (%keyword-option options :accept +json-unspecified+)))
 
-(defun %send-network-request (client request timeout)
-  (handler-case (cl-boundary-kit:network-boundary-request
-                 (client-network-boundary client)
-                 request
-                 :timeout
-                 timeout)
-    (ollama-error (condition)
-      (error condition))
-    (error (condition)
-      (error 'ollama-transport-error
-             :message
-             "The network boundary failed while sending a request."
-             :cause
-             condition))))
-
-(defun %close-response-safely (response)
-  (when (http-response-p response)
-    ;; Closing is cleanup after the response has already been handled.  A
-    ;; close failure must not replace the primary result or condition.
-    (handler-case
-        (%close-http-response response)
-      (error (condition)
-        (warn "HTTP response cleanup failed after the primary result was settled: ~A"
-              condition))))
-  response)
-
 (defun %make-network-request (client method
                                      path
                                      body-supplied-p

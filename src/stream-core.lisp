@@ -171,6 +171,13 @@
             (when (eq :stop (%finish-stream-parser parser))
               (setf self-cancelled-p t)
               (http-kit/client:http-client-cancel-request cancel-token)))
-        (setf (http-response-body response) error-body))
+        (setf response
+              (make-http-response
+               :protocol-version (http-response-protocol-version response)
+               :status (http-response-status response)
+               :reason (http-response-reason response)
+               :headers (http-response-headers response)
+               :trailers (http-response-trailers response)
+               :body error-body)))
       (%ensure-success response client)
       response)))
