@@ -13,12 +13,6 @@
               0))
 
 (defun %append-stream-error-body (buffer chunk limit)
-  (unless (%octet-vector-p chunk)
-    (error (quote ollama-protocol-error)
-           :message
-           "Streaming HTTP body chunks must be octet vectors."
-           :detail
-           (type-of chunk)))
   (when (> (+ (length buffer) (length chunk)) limit)
     (error (quote ollama-protocol-error)
            :message
@@ -105,12 +99,6 @@
                                                                           max-input-bytes))))
                                                     :on-body-chunk
                                                     (lambda (chunk)
-                                                      (unless
-                                                          response-headers-received-p
-                                                        (error
-                                                         'ollama-protocol-error
-                                                         :message
-                                                         "HTTP body arrived before response headers."))
                                                       (if (%stream-response-success-p
                                                            response-status)
                                                           (when
@@ -133,18 +121,6 @@
         (if self-cancelled-p
             (return-from %call-with-event-stream)
             (error condition))))
-    (unless (http-response-p response)
-      (error 'ollama-protocol-error
-             :message
-             "HTTP transport did not return a response."
-             :detail
-             response))
-    (unless response-headers-received-p
-      (error 'ollama-protocol-error
-             :message
-             "HTTP transport omitted the response header callback."
-             :detail
-             response))
     (if (%stream-response-success-p response-status)
         (unless self-cancelled-p
           (when (eq :stop (%finish-stream-parser parser))
