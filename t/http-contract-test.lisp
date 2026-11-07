@@ -145,4 +145,16 @@
                 (assert (typep condition 'ollama-argument-error))
                 (assert
                  (equal "Keyword options must be supplied as pairs."
+                        (ollama-error-message condition)))))
+          (it "rejects non-keyword option keys to request-raw"
+              (let ((client (make-client))
+                    (condition nil))
+                (unwind-protect
+                    (handler-case (request-raw client :get "/version" 17 nil)
+                      (ollama-argument-error (caught)
+                        (setf condition caught)))
+                  (close-client client))
+                (assert (typep condition 'ollama-argument-error))
+                (assert
+                 (equal "Unknown keyword option 17."
                         (ollama-error-message condition))))))
