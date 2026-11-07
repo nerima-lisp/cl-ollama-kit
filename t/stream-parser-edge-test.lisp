@@ -13,106 +13,155 @@
             do (return :stop)))
 
   (describe "Incremental NDJSON framing"
-    (it-each
-     (("LF" (format nil "{\"id\":1}~%"))
-      ("CRLF" (format nil "{\"id\":1}~C~%" #\Return))
-      ("EOF" "{\"id\":1}"))
-     "decodes one JSON record terminated by ~A"
-     (ending wire)
-     (let ((events nil)
+  (it-each
+   (("LF" (format nil "{\"id\":1}~%"))
+    ("CRLF" (format nil "{\"id\":1}~C~%" #\Return))
+    ("EOF" "{\"id\":1}"))
+   "decodes one JSON record terminated by ~A"
+   (ending wire)
+   (let ((events nil)
+         (parser (ollama-kit::%make-stream-parser
+                  :ndjson
+                  128
+                  (lambda (event)
+                    (push event events)))))
+     (ollama-kit::%feed-stream-parser parser (%stream-test-octets wire))
+     (ollama-kit::%finish-stream-parser parser)
+     (assert (= 1 (length events)))
+     (assert (= 1 (gethash "id" (first events))))))
+
+  (it "preserves records across UTF-8 and CRLF chunk boundaries"
+    (let* ((wire (format nil "{\"text\":\"日本😀\",\"done\":true}~C~%"
+                         #\Return))
+           (octets (%stream-test-octets wire))
+           (events nil)
            (parser (ollama-kit::%make-stream-parser
                     :ndjson
                     128
                     (lambda (event)
                       (push event events)))))
-       (ollama-kit::%feed-stream-parser parser (%stream-test-octets wire))
-       (ollama-kit::%finish-stream-parser parser)
-       (assert (= 1 (length events)))
-       (assert (= 1 (gethash "id" (first events))))))
+      (%stream-test-feed-one-octet-at-a-time parser octets)
+      (ollama-kit::%finish-stream-parser parser)
+      (assert (= 1 (length events)))
+      (assert (equal "日本😀" (gethash "text" (first events))))
+      (assert (eq t (gethash "done" (first events))))))
 
-    (it "preserves records across UTF-8 and CRLF chunk boundaries"
-        (let* ((wire (format nil "{\"text\":\"日本😀\",\"done\":true}~C~%"
-                             #\Return))
-               (octets (%stream-test-octets wire))
-               (events nil)
-               (parser (ollama-kit::%make-stream-parser
-                        :ndjson
-                        128
-                        (lambda (event)
-                          (push event events)))))
-          (%stream-test-feed-one-octet-at-a-time parser octets)
-          (ollama-kit::%finish-stream-parser parser)
-          (assert (= 1 (length events)))
-          (assert (equal "日本😀" (gethash "text" (first events))))
-          (assert (eq t (gethash "done" (first events))))))
+  (it "ignores blank records and enforces the total input limit"
+    (let* ((events nil)
+           (parser (ollama-kit::%make-stream-parser
+                    :ndjson
+                    32
+                    (lambda (event)
+                      (push event events)))))
+      (ollama-kit::%feed-stream-parser
+       parser
+       (%stream-test-octets
+        (format nil "~%  ~%{\"n\":1}~%")))
+      (assert (= 1 (length events)))
+      (let ((bounded
+              (ollama-kit::%make-stream-parser
+               :ndjson
+               8
+               (lambda (event)
+                 (declare (ignore event))))))
+        (assert (%signals-p
+                 'ollama-protocol-error
+                 (lambda ()
+                   (ollama-kit::%feed-stream-parser
+                    bounded
+                    (%stream-test-octets
+                     (format nil "{\"n\":1}~%{}~%")))))))))
 
-    (it "ignores blank records and enforces the total input limit"
-        (let* ((events nil)
-               (parser (ollama-kit::%make-stream-parser
-                        :ndjson
-                        32
-                        (lambda (event)
-                          (push event events)))))
-          (ollama-kit::%feed-stream-parser
-           parser
-           (%stream-test-octets
-            (format nil "~%  ~%{\"n\":1}~%")))
-          (assert (= 1 (length events)))
-          (let ((bounded (ollama-kit::%make-stream-parser :ndjson 8 (lambda (event)
-                                                          (declare (ignore event))))))
-            (assert (%signals-p
-                     'ollama-protocol-error
-                     (lambda ()
-                       (ollama-kit::%feed-stream-parser
-                        bounded
-                        (%stream-test-octets
-                         (format nil "{\"n\":1}~%{}~%"))))))))
+  (it "rejects malformed JSON and incomplete UTF-8 at EOF"
+    (let ((malformed
+            (ollama-kit::%make-stream-parser
+             :ndjson
+             128
+             (lambda (event)
+               (declare (ignore event))))))
+      (assert (%signals-p
+               'ollama-protocol-error
+               (lambda ()
+                 (ollama-kit::%feed-stream-parser
+                  malformed
+                  (%stream-test-octets "{\"broken\":}"))
+                 (ollama-kit::%finish-stream-parser malformed)))))
+    (let ((incomplete
+            (ollama-kit::%make-stream-parser
+             :ndjson
+             128
+             (lambda (event)
+               (declare (ignore event))))))
+      (ollama-kit::%feed-stream-parser
+       incomplete
+       (%stream-test-octets "{\"text\":\""))
+      (ollama-kit::%feed-stream-parser incomplete #(240 159))
+      (assert (%signals-p
+               'ollama-protocol-error
+               (lambda ()
+                 (ollama-kit::%finish-stream-parser incomplete))))))
 
-    (it "rejects malformed JSON and incomplete UTF-8 at EOF"
-        (let ((malformed (ollama-kit::%make-stream-parser :ndjson 128 (lambda (event)
-                                                            (declare (ignore event))))))
-          (assert (%signals-p
-                   'ollama-protocol-error
-                   (lambda ()
-                     (ollama-kit::%feed-stream-parser
-                      malformed
-                      (%stream-test-octets "{\"broken\":}"))
-                     (ollama-kit::%finish-stream-parser malformed)))))
-        (let ((incomplete (ollama-kit::%make-stream-parser :ndjson 128 (lambda (event)
-                                                             (declare (ignore event))))))
-          (ollama-kit::%feed-stream-parser incomplete
-                               (%stream-test-octets "{\"text\":\""))
-          (ollama-kit::%feed-stream-parser incomplete #(240 159))
-          (assert (%signals-p
-                   'ollama-protocol-error
-                   (lambda ()
-                     (ollama-kit::%finish-stream-parser incomplete))))))
+  (it "propagates callback conditions and stops on :STOP"
+    (let ((condition-parser
+            (ollama-kit::%make-stream-parser
+             :ndjson
+             128
+             (lambda (event)
+               (declare (ignore event))
+               (error "callback failure")))))
+      (assert (%signals-p
+               'simple-error
+               (lambda ()
+                 (ollama-kit::%feed-stream-parser
+                  condition-parser
+                  (%stream-test-octets (format nil "{\"n\":1}~%")))))))
+    (let ((events nil)
+          (parser (ollama-kit::%make-stream-parser
+                   :ndjson
+                   128
+                   (lambda (event)
+                     (push event events)
+                     :stop))))
+      (assert (eq :stop
+                  (ollama-kit::%feed-stream-parser
+                   parser
+                   (%stream-test-octets
+                    (format nil "{\"n\":1}~%{\"n\":2}~%")))))
+      (assert (= 1 (length events)))))
 
-    (it "propagates callback conditions and stops on :STOP"
-        (let ((condition-parser
-                (ollama-kit::%make-stream-parser
-                 :ndjson
-                 128
-                 (lambda (event)
-                   (declare (ignore event))
-                   (error "callback failure")))))
-          (assert (%signals-p
-                   'simple-error
-                   (lambda ()
-                     (ollama-kit::%feed-stream-parser
-                      condition-parser
-                      (%stream-test-octets (format nil "{\"n\":1}~%"))))))
-        (let ((events nil)
-              (parser (ollama-kit::%make-stream-parser
-                       :ndjson
-                       128
-                       (lambda (event)
-                         (push event events)
-                         :stop))))
-          (assert (eq :stop
-                      (ollama-kit::%feed-stream-parser
-                       parser
-                       (%stream-test-octets
-                        (format nil "{\"n\":1}~%{\"n\":2}~%")))))
-          (assert (= 1 (length events)))))))
-))
+  (it "parses NDJSON across HTTP chunks split inside UTF-8 and CRLF"
+    (let* ((emoji-octets (%stream-test-octets "😀"))
+           (server
+             (make-loopback-http-server
+              :chunks
+              (list
+               (concatenate '(vector (unsigned-byte 8))
+                            (%stream-test-octets "{\"response\":\"日本")
+                            (subseq emoji-octets 0 1))
+               (concatenate '(vector (unsigned-byte 8))
+                            (subseq emoji-octets 1)
+                            (%stream-test-octets
+                             (format nil "\",\"done\":true}~C" #\Return)))
+               (%stream-test-octets (format nil "~%")))
+              :chunk-delay 0.01))
+           (client (make-client :base-url (loopback-http-server-url server)))
+           (events nil)
+           (client-closed-p nil))
+      (unwind-protect
+          (progn
+            (generate-stream client
+                             "tiny"
+                             "prompt"
+                             (lambda (event)
+                               (push event events)))
+            (assert (= 1 (length events)))
+            (assert (equal "日本😀"
+                           (gethash "response" (first events))))
+            (assert (eq t (gethash "done" (first events))))
+            (close-client client)
+            (setf client-closed-p t)
+            (assert (loopback-http-server-await-eof server 1.5)))
+        (unless client-closed-p
+          (close-client client))
+        (close-loopback-http-server server)))))
+)
