@@ -1,5 +1,5 @@
 site_name: cl-ollama-kit
-site_description: A transport-independent Common Lisp client for the Ollama API.
+site_description: A Common Lisp client for Ollama's native and compatible HTTP APIs.
 site_url: https://nerima-lisp.github.io/cl-ollama-kit/
 repo_name: nerima-lisp/cl-ollama-kit
 repo_url: https://github.com/nerima-lisp/cl-ollama-kit
@@ -54,5 +54,6 @@ nav:
       - Architecture: reference/architecture.md
   - Project:
       - Development: project/development.md
+      - Migrating from 2.x: project/migrating-from-2.x.md
 
 not_in_nav: notes/

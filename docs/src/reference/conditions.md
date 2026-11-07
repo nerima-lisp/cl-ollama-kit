@@ -1,109 +1,42 @@
 # Conditions reference
 
-The package signals conditions that preserve the boundary, protocol, HTTP, and
-API information needed by an application. All conditions inherit from
-`ollama-kit:ollama-error`, whose message is available through
-`ollama-kit:ollama-error-message`.
+Every client condition inherits from `<code>ollama-kit:ollama-error</code>`, except that `<code>ollama-idle-timeout</code>`, `<code>ollama-response-timeout</code>`, and `<code>ollama-cancelled</code>` inherit through `<code>ollama-transport-error</code>`. `<code>ollama-stream-error</code>` inherits from `<code>ollama-protocol-error</code>`. Conditions inherit their parent readers.
 
-## Hierarchy
+## Hierarchy and readers
 
-| Condition | Additional readers |
-| --- | --- |
-| `ollama-argument-error` | `ollama-argument-error-detail` |
-| `ollama-transport-error` | `ollama-transport-error-cause` |
-| `ollama-protocol-error` | `ollama-protocol-error-detail` |
-| `ollama-http-error` | `ollama-http-error-status`, `ollama-http-error-response`, `ollama-http-error-body` |
-| `ollama-api-error` | `ollama-api-error-data` |
-| `ollama-stream-error` | `ollama-stream-error-event`, `ollama-stream-error-line` |
+| Condition | Parent | Readers |
+| --- | --- | --- |
+| `<code>ollama-error</code>` | `<code>error</code>` | `<code>ollama-error-message</code>` |
+| `<code>ollama-argument-error</code>` | `<code>ollama-error</code>` | `<code>ollama-argument-error-detail</code>` |
+| `<code>ollama-transport-error</code>` | `<code>ollama-error</code>` | `<code>ollama-transport-error-cause</code>` |
+| `<code>ollama-response-timeout</code>` | `<code>ollama-transport-error</code>` | Inherits `<code>ollama-transport-error-cause</code>` |
+| `<code>ollama-idle-timeout</code>` | `<code>ollama-transport-error</code>` | Inherits `<code>ollama-transport-error-cause</code>` |
+| `<code>ollama-cancelled</code>` | `<code>ollama-transport-error</code>` | Inherits `<code>ollama-transport-error-cause</code>` |
+| `<code>ollama-protocol-error</code>` | `<code>ollama-error</code>` | `<code>ollama-protocol-error-detail</code>` |
+| `<code>ollama-stream-error</code>` | `<code>ollama-protocol-error</code>` | `<code>ollama-stream-error-event</code>`, `<code>ollama-stream-error-line</code>` |
+| `<code>ollama-http-error</code>` | `<code>ollama-error</code>` | `<code>ollama-http-error-status</code>`, `<code>ollama-http-error-response</code>`, `<code>ollama-http-error-body</code>` |
+| `<code>ollama-api-error</code>` | `<code>ollama-http-error</code>` | `<code>ollama-api-error-data</code>` |
 
-## Conditions
+## Condition details
 
-### `ollama-error`
-
-The base condition for failures raised by the client. Read its human-readable
-message with `ollama-kit:ollama-error-message`.
-
-### `ollama-error-message`
-
-Return the message stored on an `ollama-kit:ollama-error`.
-
-### `ollama-argument-error`
-
-Signals when a client, option, URL, body, digest, or other argument violates a
-public contract. `ollama-kit:ollama-argument-error-detail` may contain the
-offending value's type or limit. An HTTP response also signals this condition
-when it contains both a materialized body and a stream.
-
-### `ollama-argument-error-detail`
-
-Return detail associated with an argument error.
-
-### `ollama-transport-error`
-
-Signals when the supplied network boundary fails before a valid response is
-available. `ollama-kit:ollama-transport-error-cause` returns the original
-condition.
-
-### `ollama-transport-error-cause`
-
-Return the underlying boundary failure.
-
-### `ollama-protocol-error`
-
-Signals when a response or stream cannot satisfy the expected protocol, such
-as invalid UTF-8, invalid JSON, or an incompatible response shape.
-
-### `ollama-protocol-error-detail`
-
-Return protocol-specific detail, when available.
-
-### `ollama-http-error`
-
-Signals for a non-success HTTP status. The condition preserves the status,
-response model, and materialized body when available.
-
-### `ollama-http-error-status`
-
-Return the numeric HTTP status.
-
-### `ollama-http-error-response`
-
-Return the associated response model.
-
-### `ollama-http-error-body`
-
-Return the response body associated with the error.
-
-### `ollama-api-error`
-
-Signals when a non-success response contains a decoded Ollama API error value.
-
-### `ollama-api-error-data`
-
-Return the decoded API error data.
-
-### `ollama-stream-error`
-
-Signals when a stream event cannot be decoded or validated. The stream is
-closed before the condition is propagated.
-
-### `ollama-stream-error-event`
-
-Return the event value associated with the stream failure.
-
-### `ollama-stream-error-line`
-
-Return the one-based line number associated with the stream failure.
+- `<code>ollama-error</code>` is the root condition. `<code>ollama-error-message</code>` returns its human-readable message.
+- `<code>ollama-argument-error</code>` signals an invalid client option, URL, request body, or endpoint argument. Its detail reader may hold the offending value or limit.
+- `<code>ollama-transport-error</code>` signals a failure in the HTTP client. `<code>ollama-transport-error-cause</code>` returns the original transport condition.
+- `<code>ollama-response-timeout</code>` signals that response headers did not arrive before the response timeout.
+- `<code>ollama-idle-timeout</code>` signals that no body chunk arrived before the idle timeout.
+- `<code>ollama-cancelled</code>` signals caller-requested cancellation. These three conditions inherit the transport cause reader.
+- `<code>ollama-protocol-error</code>` signals invalid response data or stream framing. Its detail reader carries protocol-specific information when available.
+- `<code>ollama-stream-error</code>` signals an error event received in a stream. Its event reader returns the decoded event. Its line reader is the one-based NDJSON input line; it is `<code>nil</code>` for SSE events.
+- `<code>ollama-http-error</code>` signals a non-success HTTP response and preserves its status, response message, and decoded body when available.
+- `<code>ollama-api-error</code>` is an HTTP error with a decoded Ollama API error value. `<code>ollama-api-error-data</code>` returns that value.
 
 ## Handling failures
 
-Use a handler that branches on the typed condition and retains the readers
-needed for logging or retry decisions. Retry policy belongs to the application
-boundary: the client does not assume that a request is safe to repeat.
+Assume `<code>*client*</code>` is a configured `<code>ollama-kit</code>` client. This example handles an HTTP status without inspecting a transport-specific response:
 
 ```lisp
 (handler-case
-    (ollama-kit:request-json *ollama* :get "/version")
+    (ollama-kit:request-json *client* :get "/version")
   (ollama-kit:ollama-http-error (condition)
     (format *error-output* "HTTP status: ~A~%"
             (ollama-kit:ollama-http-error-status condition)))
@@ -111,3 +44,5 @@ boundary: the client does not assume that a request is safe to repeat.
     (format *error-output* "Transport failure: ~A~%"
             (ollama-kit:ollama-error-message condition))))
 ```
+
+The client does not retry requests automatically. Put retry decisions in the application that knows whether the request can be repeated safely.

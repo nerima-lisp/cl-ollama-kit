@@ -1,107 +1,35 @@
 # Architecture reference
 
-`cl-ollama-kit` separates request construction, network execution, decoding,
-and stream ownership. The application supplies the network boundary; the
-library provides the protocol-facing layers around it.
+`<code>cl-ollama-kit</code>` separates client configuration, HTTP execution, JSON decoding, and event parsing. It uses `<code>cl-http-kit</code>` directly and HTTP request and response message types from `<code>cl-http-message-kit</code>`.
 
-## Boundary ownership
+## Client and transport
 
-`ollama-kit:make-client`, `ollama-kit:make-openai-client`, and
-`ollama-kit:make-anthropic-client` require a `cl-boundary-kit` network
-boundary. The boundary decides how sockets, DNS, proxies, TLS, pooling,
-timeouts, and test doubles are implemented. The client passes an
-`ollama-kit:http-request` to that boundary and expects an
-`ollama-kit:http-response` back.
+`<code>make-client</code>` creates a `<code>cl-http-kit</code>` client when the caller does not provide `<code>:http-client</code>`. The `<code>ollama-kit</code>` client owns that default HTTP client and `<code>close-client</code>` clears its connections. A caller-supplied HTTP client remains caller-owned.
 
-For request helpers, an omitted `:timeout` resolves to the client's configured
-default; an explicit `:timeout nil` is passed through as `NIL`. The client does
-not add a second deadline or read-idle timer above the boundary. Closing a
-returned stream is the client-level cancellation and release operation, while
-the boundary decides how promptly that close interrupts the underlying I/O.
+The default HTTP client speaks plain HTTP only. For HTTPS, the caller supplies a TLS-enabled `<code>http-kit/client:http-client</code>`. Non-loopback plain HTTP requires `<code>:allow-insecure-http t</code>`. The URL policy recognizes `<code>localhost</code>`, `<code>127.0.0.1</code>`, and `<code>::1</code>` as loopback hosts.
 
-The client also does not retry requests automatically. Retry, idempotency, and
-backoff policy belong to the application or its boundary because several
-Ollama operations mutate server state or submit non-repeatable work.
+The client has three timeout settings. `<code>:timeout</code>` controls the HTTP request timeout. `<code>:response-timeout</code>` limits the time before response headers arrive. `<code>:idle-timeout</code>` limits the gap between streamed body chunks. The latter two apply to streaming calls. A stream call can also receive a caller-created `<code>http-kit/client</code>` cancellation token through `<code>:cancel-token</code>`.
 
-This arrangement keeps deployment policy visible and allows the same client
-logic to run against production transport or an injected test boundary.
+The client does not retry requests automatically. Retry, idempotency, and backoff policy belong to the application because several Ollama operations change server state.
 
-The boundary is the `cl-boundary-kit` protocol itself, not an additional
-client-side adapter.  Request and response models remain data-only; transport,
-decoding, and lifecycle functions consume those models directly.
+## Request and response messages
 
-The native Ollama endpoints and the `/v1` OpenAI-compatible endpoints are both
-first-class protocol surfaces in version 2.  The latter is an intentional
-translation of Ollama's public OpenAI-compatible protocol, not a deprecated
-backward-compatibility alias or a runtime mode-switching layer.
+`<code>perform-request</code>` builds an HTTP request message and sends it through the configured HTTP client. `<code>request-json</code>` parses successful JSON responses and returns the decoded value and complete response message. `<code>request-raw</code>` passes through a string or octet vector body and returns a successful response message.
 
-Native endpoint declarations are data contracts expanded by
-`define-native-json-endpoint` and `define-native-stream-pair`.  The latter
-requires a literal one-argument body lambda and inlines its `NIL`/`T` branch at
-macro expansion time.  This keeps request shape in the declaration while the
-request and stream functions retain ownership of validation and I/O.
+The response objects use `<code>http-message-kit</code>` types. The package no longer exports its own request or response model constructors, stream accessors, response-close functions, or response-scope macros.
 
-## Request and response models
+JSON request bodies are encoded as UTF-8 and checked against the client's maximum request length. Response input is checked against the maximum input length before JSON decoding. Invalid UTF-8, invalid JSON, and incompatible response shapes signal typed `<code>ollama-protocol-error</code>` conditions.
 
-`ollama-kit:make-http-request` and `ollama-kit:make-http-response` construct
-small public models. A request records method, URL, headers, body, and whether a
-streaming response is requested. A response contains a status and headers plus
-either a materialized body or an incremental stream. A response close function
-is retained so ownership can be released exactly once.
+`<code>json-object</code>` and `<code>make-message</code>` construct JSON objects and native chat messages. `<code>+json-unspecified+</code>` distinguishes an omitted field from false, zero, an empty array, or JSON null.
 
-`ollama-kit:perform-request` exposes this transport layer directly.
-`ollama-kit:request-json` consumes successful response bodies and returns
-decoded JSON plus the response. High-level JSON endpoint helpers close that
-response before returning their decoded value. `ollama-kit:request-raw` leaves
-a successful response unconsumed for callers that need raw bytes or a custom
-decoder.
+## Streaming
 
-## Codec layer
+The exported stream API is synchronous and callback-based. `<code>call-with-ollama-stream</code>` parses NDJSON. `<code>call-with-openai-stream</code>` and `<code>call-with-anthropic-stream</code>` parse SSE with `<code>cl-sse-kit</code>`. Endpoint stream functions generated by the internal macros use the same callbacks.
 
-JSON request bodies are written through `cl-json-kit:write-json` with a
-configured output bound, encoded as UTF-8, and checked again in octets against
-the client's maximum request length. Response input is checked against the
-maximum input length before JSON decoding. Invalid UTF-8 and invalid JSON
-become typed `ollama-kit:ollama-protocol-error` conditions.
+Each callback receives a decoded JSON event in wire order. Returning `<code>:stop</code>` cancels the request and returns normally. A callback error or non-local exit propagates. The library stops and joins its timeout monitor during unwinding, but has no explicit cancellation call for a non-local exit.
 
-`ollama-kit:json-object` and `ollama-kit:make-message` keep JSON object and
-message construction explicit. `ollama-kit:+json-unspecified+` distinguishes
-an omitted field from an explicit false, zero, empty array, or JSON null.
+NDJSON delivers a final non-empty line at EOF. An SSE event is delivered only after a blank line terminates it; an event left open at EOF is discarded. SSE `<code>[DONE]</code>` ends processing without invoking the callback for that event.
 
-## Streaming layer
+## Conditions
 
-Native helpers open NDJSON streams through
-`ollama-kit:open-ollama-stream`. OpenAI-compatible and Anthropic-compatible
-helpers open SSE streams through `ollama-kit:open-openai-stream` and
-`ollama-kit:open-anthropic-stream`. `ollama-kit:stream-next` normalizes both
-formats to an event plus a presence flag; EOF and `[DONE]` become `nil, nil`.
-
-The caller owns every returned stream. `ollama-kit:stream-close` is idempotent,
-and `ollama-kit:stream-channel` provides a channel and completion promise for
-applications that consume events concurrently.
-
-All stream exit paths use the same safe-close policy.  A cleanup failure is
-reported as a warning and never replaces the parser, transport, or producer
-condition that caused the exit.
-
-## Validation and security
-
-Base URLs accept HTTP or HTTPS without query or fragment components. Non-
-loopback plain HTTP requires an explicit `:allow-insecure-http t` opt-in.
-Authorization values supplied through `:api-key` are added as Bearer headers;
-an explicit Authorization header cannot be combined with that option.
-
-Request and response-input limits default to 16 MiB. These limits protect the
-codec boundary and can be configured independently on each client.
-
-## Failure flow
-
-Transport failures become `ollama-kit:ollama-transport-error`; malformed or
-incompatible data becomes `ollama-kit:ollama-protocol-error`; non-success
-statuses become HTTP or API conditions; and stream decoding failures preserve
-the event and line number. See the [conditions reference](conditions.md).
-
-The public `call-with-json` and `call-with-stream` functions are the CPS
-boundary for callers that want explicit success and failure continuations.
-Endpoint body construction stays data-oriented; transport and stream failures
-are routed through those continuations without adding an adapter layer.
+Transport failures signal `<code>ollama-transport-error</code>`. Response and idle timeouts and caller cancellation signal its subclasses `<code>ollama-response-timeout</code>`, `<code>ollama-idle-timeout</code>`, and `<code>ollama-cancelled</code>`. Malformed or incompatible data signals `<code>ollama-protocol-error</code>`. Non-success HTTP statuses signal `<code>ollama-http-error</code>` or `<code>ollama-api-error</code>`. Stream error events preserve the decoded event and an NDJSON line number. See the [conditions reference](conditions.md).

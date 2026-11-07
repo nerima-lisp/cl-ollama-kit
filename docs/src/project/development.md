@@ -1,70 +1,44 @@
 # Development
 
-The repository is an ASDF system with a Nix development environment. Source
-and tests are intentionally transport-independent: the test suite supplies
-network boundaries and request functions instead of requiring a live model
-service.
+The repository is an ASDF system with a Nix development environment. The client uses `<code>cl-http-kit</code>` directly; tests provide HTTP clients and responses without requiring a running Ollama service.
 
 ## Source layout
 
 ```text
 src/
   package.lisp          exported package surface
-  conditions.lisp       typed conditions
-  data-model.lisp       client, request, response, and stream models
-  model.lisp            client construction and defaults
-  input-limits.lisp     shared request, response, and stream limits
-  url-components.lisp   URL parsing and authority/path components
-  url-validation.lisp   base URL and request-path policy
-  http-validation.lisp  response and header validation
-  json.lisp              JSON objects and chat messages
-  http-encoding.lisp     URL joining and bounded JSON request encoding
-  http-decoding.lisp     UTF-8, JSON response decoding, and HTTP errors
-  transport.lisp         boundary requests and response ownership
-  transport-scope.lisp   response lifetime macros
-  cps.lisp               continuation-passing transport helpers
-  stream-core.lisp       NDJSON and SSE stream opening
-  stream-parser.lisp     event decoding
-  stream.lisp            stream iteration and channel integration
-  native-*.lisp          native Ollama endpoint helpers
-  openai-api.lisp        OpenAI-compatible endpoint helpers
+  conditions.lisp       typed conditions and readers
+  data-model.lisp       client settings and defaults
+  model.lisp            client construction and cleanup
+  input-limits.lisp     request and response bounds
+  url-components.lisp   URL components and loopback detection
+  url-validation.lisp   URL and request-path rules
+  http-validation.lisp  HTTP message validation
+  json.lisp             JSON objects and messages
+  http-encoding.lisp    bounded request encoding
+  http-decoding.lisp    response decoding and HTTP errors
+  transport.lisp        cl-http-kit requests and timeout monitoring
+  transport-response.lisp JSON and raw response helpers
+  cps.lisp              continuation-passing entry points
+  stream-core.lisp      synchronous stream requests and callbacks
+  stream-framing.lisp   NDJSON line framing
+  stream-parser.lisp    NDJSON and SSE event parsing
+  native-*.lisp         native Ollama endpoint functions
+  openai-api.lisp       OpenAI-compatible endpoint functions
+  anthropic-api.lisp    Anthropic-compatible endpoint functions
 t/
-  test-support.lisp      shared boundary and response fixtures
-  stream-api-test.lisp   stream lifecycle and error contracts
-  *.lisp                 unit, edge, contract, property, and coverage tests
+  *.lisp                unit, contract, edge-case, and coverage tests
 ```
 
-The system definition in `cl-ollama-kit.asd` is the source of truth for the
-load order and test component list.
-
-Endpoint macros are the preferred extension point.  Add a declarative body
-contract to the existing native or OpenAI macro family instead of introducing
-a wrapper around `request-json`, `open-ollama-stream`, or the network boundary.
-Keep structures and JSON objects in the data-model/codec layers, and keep
-validation, transport, and stream ownership in their existing logic layers.
-
-The test suite uses cl-weave directly: example tests cover concrete contracts,
-`it-each` covers shared cases, property/fuzz tests exercise generated inputs,
-continuation helpers verify CPS boundaries, and the runner enforces expression
-and branch thresholds.  The coverage script also checks that the generated
-coverage data and report directory are non-empty after the runner succeeds.
+The system definition in `<code>cl-ollama-kit.asd</code>` defines load order and test components. Native endpoint declarations use internal macros in `<code>src/native-macros.lisp</code>`; those macros are not exported API. Their generated functions call the shared validation, transport, and stream layers.
 
 ## Test commands
 
-Run the complete test system with:
+Run the test system with:
 
 ```sh
 sbcl --script run-tests.lisp
 ```
-
-The script expects the pinned sibling dependencies from the Nix environment;
-when they are unavailable it fails explicitly instead of silently selecting an
-incomplete test system.  The `run-tests` helper also accepts `:timeout-ms` for
-bounded test execution.
-
-The test boundary checks request construction, limits, URL policy, JSON
-contracts, response ownership, native endpoints, OpenAI-compatible endpoints,
-and both stream wire formats.
 
 Run coverage with:
 
@@ -72,30 +46,18 @@ Run coverage with:
 sbcl --script run-coverage.lisp
 ```
 
-The coverage script writes an HTML report to a unique temporary directory by
-default. Set `CL_OLLAMA_KIT_COVERAGE_DIRECTORY` to choose another report
-directory. Every executable implementation file under `src/` is included in
-the report and is subject to the 100% expression and branch thresholds passed
-by `run-coverage.lisp`. The
-load-time-only declarations in `package.lisp`, `conditions.lisp`, and
-`data-model.lisp` are explicitly excluded because the public cl-weave runner
-starts coverage after ASDF has loaded them; `native-macros.lisp` and its
-runtime helpers remain covered. The report uses SB-COVER's expression and
-branch metrics; it is not a separate line-coverage claim.
+The coverage script writes its report to a temporary directory by default. Set `<code>CL_OLLAMA_KIT_COVERAGE_DIRECTORY</code>` to choose another directory.
 
 ## Nix checks
 
-Use the flake for a reproducible development shell and repository checks:
+Use the flake for the development shell and repository checks:
 
 ```sh
 nix develop
 nix flake check
 ```
 
-The flake checks the package tests, 100% executable coverage threshold,
-documentation build, formatting, and paredit structure on supported systems.
-The shell also provides the structural Lisp tooling used by the project. Run
-the local structural inspection explicitly with:
+The structural Lisp inspection command is:
 
 ```sh
 paredit inspect lint src t --dialect common-lisp --output json --stats
@@ -103,28 +65,10 @@ paredit inspect lint src t --dialect common-lisp --output json --stats
 
 ## Documentation checks
 
-Documentation is built from `docs/mkdocs.yml` with the Material theme and
-strict link checking:
+Build the site from the repository root with strict link checking. The explicit output directory keeps generated files outside the checkout:
 
 ```sh
-mkdocs build --strict --config-file docs/mkdocs.yml
+nix run nixpkgs#mkdocs -- build -f docs/mkdocs.yml -d /tmp/cl-ollama-kit-docs-site --strict
 ```
 
-Keep the root README as a concise entry point. Put API details in
-`docs/src/reference/`, conceptual material in `guide/`, and project process in
-`project/`. Work notes belong under `docs/src/notes/`, which is intentionally
-excluded from navigation.
-
-## Contribution hygiene
-
-Keep examples package-qualified, use relative `.md` links inside the docs tree,
-and keep navigation focused on guides, reference, and project process. Run the
-narrowest relevant Lisp and documentation checks before handing off a change.
-
-## Completed work units
-
-Treat each completed branch or worktree as one reviewable work unit. Commit the
-complete unit, merge it into `main` from an isolated worktree, and run the
-package, test, coverage, documentation, formatting, and structural Lisp checks.
-After every check passes, push `main` and remove the merged worktree and branch.
-Keep active worktrees and branches for unfinished units.
+Keep the root README as a concise entry point, API details under `<code>docs/src/reference/</code>`, usage instructions under `<code>docs/src/guide/</code>`, and project process under `<code>docs/src/project/</code>`. Use package-qualified names in examples and relative Markdown links within the docs tree.
