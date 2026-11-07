@@ -3,20 +3,11 @@
 (defun make-openai-client (&rest options)
   "Create a client for Ollama's OpenAI-compatible `/v1` API."
   (%validate-keyword-options options +client-option-keys+)
-  (make-client :base-url
-               (%keyword-option options :base-url +openai-default-base-url+)
-               :headers
-               (%keyword-option options :headers nil)
-               :api-key
-               (%keyword-option options :api-key nil)
-               :timeout
-               (%keyword-option options :timeout nil)
-               :max-input-length
-               (%keyword-option options :max-input-length 16777216)
-               :max-request-length
-               (%keyword-option options :max-request-length 16777216)
-               :allow-insecure-http
-               (%keyword-option options :allow-insecure-http nil)))
+  (let ((client-options (copy-list options)))
+    (setf (getf client-options :base-url) (%keyword-option options
+                                                           :base-url
+                                                           +openai-default-base-url+))
+    (apply #'make-client client-options)))
 
 (defun %openai-stream-body (body)
   (%json-object-with-field body "stream" t))
