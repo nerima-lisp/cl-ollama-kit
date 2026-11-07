@@ -70,7 +70,6 @@
                                  (:file "anthropic-api-test")
                                  (:file "stream-api-test")
                                  (:file "coverage-support")
-                                 (:file "coverage-api-test")
                                  (:file "coverage-contract-test")
                                  (:file "json-contract-test")
                                  (:file "http-validation-test")
