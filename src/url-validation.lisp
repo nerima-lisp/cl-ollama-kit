@@ -13,43 +13,37 @@
                "BASE-URL must contain more than URL separators."))))
 
 (defun %validate-http-url-components (url subject)
-  (when (%url-contains-control-p url)
-    (error 'ollama-argument-error
-           :message
-           (format nil "~A must not contain controls or whitespace." subject)))
-  (when (find #\# url)
-    (error 'ollama-argument-error
-           :message
-           (format nil "~A must not contain a URL fragment." subject)))
-  (let ((scheme (%url-scheme url)))
-    (unless scheme
-      (error 'ollama-argument-error
-             :message
-             (format nil "~A must use the HTTP or HTTPS scheme." subject)))
-    (unless (%valid-host-authority-p (%url-authority url))
-      (error 'ollama-argument-error
-             :message
-             (format nil "~A must contain a valid host authority." subject)))
-    (when (%url-has-dot-path-segment-p url)
+  (let ((uri
+         (handler-case (http-kit:parse-http-uri url)
+           (http-kit:http-invalid-uri ()
+             (error 'ollama-argument-error
+                    :message
+                    (format nil "~A must be a valid HTTP or HTTPS URL." subject))))))
+    (when (%url-has-dot-path-segment-p uri)
       (error 'ollama-argument-error
              :message
              (format nil "~A must not contain dot path segments." subject)))
-    scheme))
+    (values
+     (if (string= (http-kit:http-uri-scheme uri) "http")
+         :http
+         :https)
+     uri)))
 
 (defun %validate-http-request-url (url)
   (%validate-http-url-components url "HTTP request URLs")
   url)
 
 (defun %validate-base-url (base-url allow-insecure-http)
-  (let ((scheme
-         (%validate-http-url-components base-url "BASE-URL")))
-    (when (find #\? base-url)
+  (multiple-value-bind (scheme uri)
+      (%validate-http-url-components base-url "BASE-URL")
+    (when (http-kit:http-uri-query uri)
       (error 'ollama-argument-error
              :message
              "BASE-URL must not contain a query string."))
-    (when (and (eq scheme :http)
-               (not allow-insecure-http)
-               (not (%base-url-loopback-p base-url)))
+    (when
+        (and (eq scheme :http)
+             (not allow-insecure-http)
+             (not (%base-url-loopback-p base-url)))
       (error 'ollama-argument-error
              :message
              "Non-loopback HTTP requires ALLOW-INSECURE-HTTP."))
