@@ -373,25 +373,6 @@
                                   :test
                                   #'string=))))))))
 
-(it-each (("true" t t) ("false" nil json-kit:+json-false+) ("enum" :low "low"))
-         "sends ~A think values in the native JSON body"
-         (name think expected)
-         (let* ((sent-request nil)
-                (client
-                 (client-with-request-function
-                  (lambda (request &key timeout)
-                    (declare (ignore timeout))
-                    (setf sent-request request)
-                    (response-with-text "{}")))))
-           (unwind-protect
-               (progn
-                 (generate client "fixture-model" "prompt" :think think)
-                 (multiple-value-bind (sent-think present-p)
-                     (gethash "think" (request-json-object sent-request))
-                   (assert present-p)
-                   (assert (equal expected sent-think))))
-             (close-client client))))
-
 (it "validates web-fetch URLs before transport and forwards query URLs"
     (let* ((transport-count 0)
            (seen-request nil)

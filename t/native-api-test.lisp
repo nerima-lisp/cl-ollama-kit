@@ -117,23 +117,30 @@
            (assert (equal "painted" (gethash "response" value)))
            (assert (eq t (gethash "done" value)))))))
 
-    (it "preserves the JSON false sentinel for boolean-or-enum options"
-      (%call-with-native-loopback-response
-       "{\"model\":\"fixture-model\",\"response\":\"reasoned\",\"done\":true}"
-       "application/json"
-       (lambda (client server)
-         (let* ((value
-                  (generate client
-                            "fixture-model"
-                            "prompt"
-                            :think
-                            json-kit:+json-false+))
-                (request
-                  (%assert-native-loopback-request server :post "/generate"))
-                (body (request-json-object request)))
-           (assert (json-kit:json-false-p (gethash "think" body)))
-           (assert (eq json-kit:+json-false+ (gethash "stream" body)))
-           (assert (equal "reasoned" (gethash "response" value)))))))
+    (it-each
+     (("true" t t)
+      ("false" nil json-kit:+json-false+)
+      ("low" :low "low"))
+     "sends ~A think values in the native JSON body"
+     (name think expected)
+     (%call-with-native-loopback-response
+      "{\"model\":\"fixture-model\",\"response\":\"reasoned\",\"done\":true}"
+      "application/json"
+      (lambda (client server)
+        (let* ((value
+                 (generate client "fixture-model" "prompt" :think think))
+               (request
+                 (%assert-native-loopback-request server :post "/generate"))
+               (body (request-json-object request)))
+          (multiple-value-bind (sent-think present-p) (gethash "think" body)
+            (assert present-p)
+            (assert
+             (cond
+               ((eq think t) (eq sent-think t))
+               ((null think) (json-kit:json-false-p sent-think))
+               (t (equal expected sent-think)))))
+          (assert (eq json-kit:+json-false+ (gethash "stream" body)))
+          (assert (equal "reasoned" (gethash "response" value)))))))
 
     (it "parses scalar embedding input and the returned vector"
       (%call-with-native-loopback-response
