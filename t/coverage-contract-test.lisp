@@ -460,7 +460,29 @@ this function returns.")))
                (assert (typep condition expected-condition-type))
                (assert (typep condition 'program-error))
                (assert
-                (string= expected-message (princ-to-string condition)))))))
+                (string= expected-message (princ-to-string condition))))))
+          (it-each
+           (("RESPONSE-TIMEOUT"
+             (client body event-function &key timeout headers idle-timeout cancel-token))
+            ("IDLE-TIMEOUT"
+             (client body event-function &key timeout headers response-timeout cancel-token)))
+           "rejects native stream endpoints without ~A"
+           (missing-timeout lambda-list)
+           (dolist
+               (macro
+                (quote (ollama-kit::define-openai-stream-endpoint
+                        ollama-kit::define-anthropic-stream-endpoint)))
+             (let ((condition nil))
+               (handler-case
+                   (macroexpand-1
+                    (list macro
+                          (quote generated-invalid-stream-endpoint)
+                          lambda-list
+                          :post
+                          "/stream"))
+                 (program-error (caught)
+                   (setf condition caught)))
+               (assert (typep condition (quote program-error)))))))
 
 (describe "coverage boundary contracts"
           (it "executes inline input, JSON, and native option helpers"
