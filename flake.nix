@@ -5,12 +5,12 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     cl-nix-forge = {
-      url = "github:nerima-lisp/cl-nix-forge/v0.5.0";
+      url = "github:nerima-lisp/cl-nix-forge/v0.7.4";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     cl-weave = {
-      url = "github:nerima-lisp/cl-weave/v1.3.0";
+      url = "github:nerima-lisp/cl-weave/v1.5.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -21,6 +21,7 @@
 
     paredit-cli = {
       url = "github:nerima-lisp/paredit-cli/v1.7.1";
+      inputs.nixpkgs.follows = "nixpkgs";
       inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
@@ -36,7 +37,7 @@
     };
 
     cl-codec-kit = {
-      url = "github:nerima-lisp/cl-codec-kit/v0.5.0";
+      url = "github:nerima-lisp/cl-codec-kit/v0.6.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.cl-weave.follows = "cl-weave";
       inputs.cl-nix-forge.follows = "cl-nix-forge";
@@ -64,7 +65,7 @@
     # Used as an independent finite SSE grammar oracle in the check closure.
     # The production parser remains incremental and bounded in cl-ollama-kit.
     cl-sse-kit = {
-      url = "github:nerima-lisp/cl-sse-kit";
+      url = "github:nerima-lisp/cl-sse-kit/v1.1.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.cl-weave.follows = "cl-weave";
     };
@@ -116,7 +117,7 @@
           clSseKit = cl-nix-forge.lib.${ctx.system}.fromDerivation {
             drv = cl-nix-forge.lib.${ctx.system}.lispDerivation {
               pname = "cl-sse-kit";
-              version = "0.1.0";
+              version = "1.1.0";
               lispSystem = "cl-sse-kit";
               src = cl-sse-kit.packages.${ctx.system}.default;
               lispAsdPath = [ "share/common-lisp/source/cl-sse-kit" ];
