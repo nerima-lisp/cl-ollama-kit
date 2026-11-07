@@ -370,3 +370,90 @@
                                                             :response))))
         (assert send-called-p)
         (assert (eq :response response)))))
+
+(it "re-signals a transport cancellation not caused by response overflow"
+    (let* ((client
+            (client-with-request-function
+             (lambda (request &key timeout)
+               (declare (ignore request timeout))
+               (error (quote http-kit/client:http-client-request-cancelled)))))
+           (caught nil))
+      (handler-case (perform-request client :get "/cancelled")
+        (ollama-cancelled (condition)
+          (setf caught condition)))
+      (assert caught)
+      (assert
+       (typep (ollama-transport-error-cause caught)
+              (quote http-kit/client:http-client-request-cancelled)))))
+
+(it "returns the diagnostic prefix after overflow cancellation"
+    (let* ((body (cl-codec-kit:string-to-octets "abcdef" :encoding :utf-8))
+           (client
+            (make-client :http-client
+                         (http-kit/client:make-http-client :transport-function
+                                                           (lambda
+                                                               (request &key
+                                                                        on-response-headers
+                                                                        on-body-chunk
+                                                                        &allow-other-keys)
+                                                             (declare (ignore
+                                                                       request))
+                                                             (funcall
+                                                              on-response-headers
+                                                              502
+                                                              nil)
+                                                             (funcall
+                                                              on-body-chunk
+                                                              body)
+                                                             (error
+                                                              (quote
+                                                               http-kit/client:http-client-request-cancelled))))
+                         :max-input-length
+                         4))
+           (response (perform-request client :get "/large-error")))
+      (assert (= 502 (http-message-kit:http-response-status response)))
+      (assert
+       (equalp #(97 98 99 100) (http-message-kit:http-response-body response)))))
+
+(it
+ "stops reading an oversized non-success response and keeps its diagnostic prefix"
+ (let* ((body
+         (make-array (* 1024 1024)
+                     :element-type
+                     (quote (unsigned-byte 8))
+                     :initial-element
+                     65))
+        (server
+         (make-loopback-http-server :status 502 :body body :keep-alive-p nil))
+        (client
+         (make-client :base-url
+                      (loopback-http-server-url server)
+                      :max-input-length
+                      64))
+        (server-thread (%loopback-http-server-thread server))
+        (condition nil))
+   (unwind-protect
+       (progn
+         (handler-case (request-json client :get "/large-error")
+           (ollama-http-error (caught)
+             (setf condition caught)))
+         (assert condition)
+         (assert (= 502 (ollama-http-error-status condition)))
+         (assert (= 64 (length (ollama-http-error-body condition))))
+         (assert
+          (= 502
+             (http-message-kit:http-response-status
+              (ollama-http-error-response condition))))
+         (assert
+          (= 64
+             (length
+              (http-message-kit:http-response-body
+               (ollama-http-error-response condition)))))
+         (close-client client)
+         (sb-thread:join-thread server-thread)
+         (let ((server-error (loopback-http-server-server-error server))
+               (server-eof-p (loopback-http-server-eof-p server)))
+           (assert (and server-error (not server-eof-p))
+                   (server-error server-eof-p))))
+     (close-client client)
+     (close-loopback-http-server server))))

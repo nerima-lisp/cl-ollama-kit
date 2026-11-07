@@ -144,7 +144,10 @@ header with the same name. NIL suppresses the default header."
                         t
                         :fill-pointer
                         0))
-           (response-status nil))
+           (response-status nil)
+           (response-headers nil)
+           (cancel-token (http-kit/client:make-http-cancellation-token))
+           (self-cancelled-p nil))
       (labels ((append-response-chunk (chunk)
                  (let* ((used (length response-body))
                         (available (- max-input-length used))
@@ -194,29 +197,60 @@ header with the same name. NIL suppresses the default header."
                                        content-type
                                        accept))
                (response
-                (send-http-request client
-                                   request
-                                   :timeout
-                                   (%request-timeout client timeout)
-                                   :collect-body-p
-                                   nil
-                                   :on-response-headers
-                                   (lambda (status response-headers)
-                                     (declare (ignore response-headers))
-                                     (setf response-status status))
-                                   :on-body-chunk
-                                   (lambda (chunk)
-                                     (let ((overflow-p
-                                            (append-response-chunk chunk)))
-                                       (when
-                                           (and overflow-p
-                                                (or (null response-status)
-                                                    (<= 200 response-status 299)))
-                                         (error 'ollama-protocol-error
-                                                :message
-                                                "HTTP response body exceeds the configured limit."
-                                                :detail
-                                                max-input-length)))))))
+                (handler-case (send-http-request client
+                                                 request
+                                                 :timeout
+                                                 (%request-timeout client
+                                                                   timeout)
+                                                 :cancel-token
+                                                 cancel-token
+                                                 :collect-body-p
+                                                 nil
+                                                 :on-response-headers
+                                                 (lambda (status headers)
+                                                   (setf response-status status
+                                                         response-headers headers))
+                                                 :on-body-chunk
+                                                 (lambda (chunk)
+                                                   (let* ((overflow-p
+                                                           (append-response-chunk
+                                                            chunk))
+                                                          (success-or-unknown-status-p
+                                                           (or
+                                                            (null
+                                                             response-status)
+                                                            (<= 200
+                                                                response-status
+                                                                299))))
+                                                     (when
+                                                         (and overflow-p
+                                                              success-or-unknown-status-p)
+                                                       (error
+                                                        (quote
+                                                         ollama-protocol-error)
+                                                        :message
+                                                        "HTTP response body exceeds the configured limit."
+                                                        :detail
+                                                        max-input-length))
+                                                     (when
+                                                         (and overflow-p
+                                                              response-status
+                                                              (not
+                                                               success-or-unknown-status-p)
+                                                              (not
+                                                               self-cancelled-p))
+                                                       (setf self-cancelled-p t)
+                                                       (http-kit/client:http-client-cancel-request
+                                                        cancel-token)))))
+                  (ollama-cancelled (condition)
+                    (if self-cancelled-p
+                        (make-http-response :status
+                                            response-status
+                                            :headers
+                                            response-headers
+                                            :body
+                                            response-body)
+                        (error condition))))))
           (response-with-body response))))))
 
 (defun %perform-request-with-optional-body (client method
