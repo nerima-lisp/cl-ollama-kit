@@ -29,19 +29,14 @@
                              (timeout +timeout-unspecified+)
                              headers)
   "Return true when DIGEST is present in Ollama's blob store. A 404 returns NIL."
-  (let ((response (perform-request client
-                                   :head
-                                   (%blob-path digest)
-                                   :timeout
-                                   timeout
-                                   :headers
-                                   headers)))
-    (unless (http-response-p response)
-      (error 'ollama-protocol-error
-             :message
-             "HTTP client did not return an HTTP response."
-             :detail
-             response))
+  (let ((response
+         (perform-request client
+                          :head
+                          (%blob-path digest)
+                          :timeout
+                          timeout
+                          :headers
+                          headers)))
     (let ((status (http-response-status response)))
       (cond
         ((and (integerp status) (<= 200 status 299)) t)
