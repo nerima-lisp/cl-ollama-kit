@@ -1,112 +1,155 @@
 (in-package #:ollama-kit/test)
 
 (describe "generated endpoint macro contracts"
-          (it "expands JSON endpoints and rejects non-symbol request functions"
-              (let* ((form
-                      (list (quote ollama-kit::define-json-endpoint)
-                            (quote ollama-kit::%request-json-value)
-                            (quote generated-json-endpoint)
-                            (quote
-                             (ollama-kit::client &key
-                                                 ollama-kit::timeout
-                                                 ollama-kit::headers))
-                            :post
-                            "/coverage"
-                            :documentation
-                            "Generated JSON endpoint."))
-                     (expansion (macroexpand-1 form)))
-                (assert (eq (quote defun) (first expansion)))
-                (assert (eq (quote generated-json-endpoint) (second expansion)))
-                (assert
-                 (equal
-                  (quote
-                   (ollama-kit::client &key
-                                       ollama-kit::timeout
-                                       ollama-kit::headers))
-                  (third expansion)))
-                (assert (equal "Generated JSON endpoint." (fourth expansion)))
-                (assert
-                 (equal
-                  (list (quote ollama-kit::%request-json-value)
-                        (quote ollama-kit::client)
-                        (quote (quote :post))
-                        (quote (quote "/coverage"))
-                        :timeout
-                        (quote ollama-kit::timeout)
-                        :headers
-                        (quote ollama-kit::headers))
-                  (fifth expansion))))
+          (it "defines JSON endpoints and rejects non-symbol request functions"
+              (eval
+               '(ollama-kit::define-json-endpoint
+                 ollama-kit::%request-json-value
+                 generated-json-endpoint
+                 (ollama-kit::client &key
+                                     ollama-kit::timeout
+                                     ollama-kit::headers)
+                 :post
+                 "/coverage"
+                 :documentation
+                 "Generated JSON endpoint."))
+              (let* ((lambda-list-function
+                      (progn
+                        (require :sb-introspect)
+                        (symbol-function
+                         (find-symbol "FUNCTION-LAMBDA-LIST" "SB-INTROSPECT"))))
+                     (sent-request nil)
+                     (sent-timeout nil)
+                     (client
+                      (client-with-request-function
+                       (lambda (request &key timeout)
+                         (setf sent-request request
+                               sent-timeout timeout)
+                         (response-with-text "{\"event\":\"observed\"}"))
+                       :base-url
+                       "http://localhost"))
+                     (result nil))
+                (unwind-protect
+                    (progn
+                      (assert (fboundp 'generated-json-endpoint))
+                      (assert
+                       (equal '("CLIENT" "&KEY" "TIMEOUT" "HEADERS")
+                              (mapcar #'symbol-name
+                                      (funcall lambda-list-function
+                                               (fdefinition
+                                                'generated-json-endpoint)))))
+                      (setf result (funcall
+                                    (fdefinition 'generated-json-endpoint)
+                                    client
+                                    :timeout
+                                    17
+                                    :headers
+                                    '(("x-coverage" . "json-endpoint"))))
+                      (assert (http-message-kit:http-request-p sent-request))
+                      (assert
+                       (string= "POST"
+                                (http-message-kit:http-request-method
+                                 sent-request)))
+                      (assert
+                       (string= "/coverage"
+                                (http-message-kit:http-request-target
+                                 sent-request)))
+                      (assert (= 17 sent-timeout))
+                      (assert
+                       (string= "json-endpoint"
+                                (http-message-kit:http-header-value
+                                 (http-message-kit:http-request-headers
+                                  sent-request)
+                                 "x-coverage")))
+                      (assert (equal "observed" (gethash "event" result))))
+                  (close-client client)))
               (handler-case (progn
                               (macroexpand-1
-                               (quote
-                                (ollama-kit::define-json-endpoint
+                               '(ollama-kit::define-json-endpoint
                                  (function list)
                                  generated-invalid-endpoint
                                  (ollama-kit::client &key
                                                      ollama-kit::timeout
                                                      ollama-kit::headers)
                                  :get
-                                 "/invalid")))
+                                 "/invalid"))
                               (assert nil))
                 (program-error ()
                   t)))
-          (it "expands each event stream consumer with its wire contract"
-              (dolist
-                  (contract
-                   '((ollama-kit::call-with-openai-stream :sse
-                                                          "text/event-stream"
-                                                          "Consume OpenAI-compatible SSE events synchronously.
-
-EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
-the active request and complete normally. The HTTP response is closed before
-this function returns.")
-                     (ollama-kit::call-with-ollama-stream :ndjson
-                                                          "application/x-ndjson"
-                                                          "Consume native Ollama NDJSON events synchronously.
-
-EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
-the active request and complete normally. The HTTP response is closed before
-this function returns.")
-                     (ollama-kit::call-with-anthropic-stream :sse
-                                                             "text/event-stream"
-                                                             "Consume Anthropic-compatible SSE events synchronously.
-
-EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
-the active request and complete normally. The HTTP response is closed before
-this function returns.")))
-                (destructuring-bind (name wire-format
-                                          content-type
-                                          documentation) contract
-                  (let* ((form
-                          (list (quote ollama-kit::define-event-stream-consumer)
-                                name
-                                wire-format
-                                content-type
-                                documentation))
-                         (expansion (macroexpand-1 form)))
-                    (assert (eq (quote defun) (first expansion)))
-                    (assert (eq name (second expansion)))
-                    (assert
-                     (equal
-                      (quote
-                       (ollama-kit::client ollama-kit::method
-                                           ollama-kit::path
-                                           ollama-kit::event-function
-                                           &rest
-                                           ollama-kit::options))
-                      (third expansion)))
-                    (assert (equal documentation (fourth expansion)))
-                    (assert
-                     (equal
-                      (list (quote ollama-kit::%call-with-event-stream)
-                            (quote ollama-kit::client)
-                            (quote ollama-kit::method)
-                            (quote ollama-kit::path)
-                            wire-format
-                            (quote ollama-kit::event-function)
-                            content-type
-                            (quote ollama-kit::options))
-                      (fifth expansion))))))))
+          (it "defines each event stream wrapper with its declared behavior"
+              (let ((lambda-list-function
+                     (progn
+                       (require :sb-introspect)
+                       (symbol-function
+                        (find-symbol "FUNCTION-LAMBDA-LIST" "SB-INTROSPECT")))))
+                (dolist
+                    (contract
+                     '((ollama-kit::call-with-openai-stream :sse
+                                                            "text/event-stream")
+                       (ollama-kit::call-with-ollama-stream :ndjson
+                                                            "application/x-ndjson")
+                       (ollama-kit::call-with-anthropic-stream :sse
+                                                               "text/event-stream")))
+                  (destructuring-bind (name wire-format accept) contract
+                    (macroexpand-1
+                     `(ollama-kit::define-event-stream-consumer ,name
+                                                                ,wire-format
+                                                                ,accept
+                                                                "Generated event stream consumer."))
+                    (let* ((sent-request nil)
+                           (events nil)
+                           (client
+                            (client-with-request-function
+                             (lambda (request &key timeout)
+                               (declare (ignore timeout))
+                               (setf sent-request request)
+                               (response-with-text
+                                (if (eq wire-format :ndjson)
+                                    (format nil "{\"event\":\"observed\"}~%")
+                                    (format nil
+                                            "data: {\"event\":\"observed\"}~%~%"))))
+                             :base-url
+                             "http://localhost")))
+                      (unwind-protect
+                          (progn
+                            (assert (fboundp name))
+                            (assert
+                             (equal
+                              '("CLIENT" "METHOD"
+                                         "PATH"
+                                         "EVENT-FUNCTION"
+                                         "&REST"
+                                         "OPTIONS")
+                              (mapcar #'symbol-name
+                                      (funcall lambda-list-function
+                                               (fdefinition name)))))
+                            (funcall (fdefinition name)
+                                     client
+                                     :post
+                                     "/stream"
+                                     (lambda (event)
+                                       (push event events)
+                                       :stop))
+                            (assert
+                             (http-message-kit:http-request-p sent-request))
+                            (assert
+                             (string= "POST"
+                                      (http-message-kit:http-request-method
+                                       sent-request)))
+                            (assert
+                             (string= "/stream"
+                                      (http-message-kit:http-request-target
+                                       sent-request)))
+                            (assert
+                             (string= accept
+                                      (http-message-kit:http-header-value
+                                       (http-message-kit:http-request-headers
+                                        sent-request)
+                                       "Accept")))
+                            (assert (= 1 (length events)))
+                            (assert
+                             (equal "observed" (gethash "event" (first events)))))
+                        (close-client client))))))))
 
 (describe "argument and continuation contracts"
           (it "rejects unsafe OpenAI model names"
