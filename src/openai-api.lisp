@@ -63,14 +63,16 @@
 
 (defun openai-model (client model &key (timeout +timeout-unspecified+) headers)
   "Return one model description through `/v1/models/{model}`."
-  (%validate-openai-model-name model)
-  (%request-json-value client
-                       :get
-                       (format nil "/models/~A" model)
-                       :timeout
-                       timeout
-                       :headers
-                       headers))
+  (let* ((validated-model (%validate-openai-model-name model))
+         (encoded-model
+          (http-kit/client:http-percent-encode validated-model)))
+    (%request-json-value client
+                         :get
+                         (format nil "/models/~A" encoded-model)
+                         :timeout
+                         timeout
+                         :headers
+                         headers)))
 
 (define-openai-json-endpoint openai-chat-completions
                              (client body
