@@ -56,18 +56,8 @@
           (when body-supplied-p
             (%encode-json body (client-max-request-length client))))
          (timeout (%keyword-option options :timeout +timeout-unspecified+))
-         (response-timeout-supplied-p
-          (and (%keyword-option-supplied-p options :response-timeout)
-               (not (eq (%keyword-option options :response-timeout
-                                         +timeout-unspecified+)
-                        +timeout-unspecified+))))
          (response-timeout
           (%keyword-option options :response-timeout +timeout-unspecified+))
-         (idle-timeout-supplied-p
-          (and (%keyword-option-supplied-p options :idle-timeout)
-               (not (eq (%keyword-option options :idle-timeout
-                                         +timeout-unspecified+)
-                        +timeout-unspecified+))))
          (idle-timeout
           (%keyword-option options :idle-timeout +timeout-unspecified+))
          (headers (%keyword-option options :headers nil))
@@ -92,9 +82,9 @@
          (error-body nil)
          (self-cancelled-p nil)
          (response nil))
-    (when response-timeout-supplied-p
+    (when (not (eq response-timeout +timeout-unspecified+))
       (%validate-timeout response-timeout))
-    (when idle-timeout-supplied-p
+    (when (not (eq idle-timeout +timeout-unspecified+))
       (%validate-timeout idle-timeout))
     (progn
       (handler-case (setf response (apply (function send-http-request)
@@ -140,10 +130,10 @@
                                                chunk
                                                max-input-bytes)))
                                           (append
-                                           (when response-timeout-supplied-p
+                                           (when (not (eq response-timeout +timeout-unspecified+))
                                              (list :response-timeout
                                                    response-timeout))
-                                           (when idle-timeout-supplied-p
+                                           (when (not (eq idle-timeout +timeout-unspecified+))
                                              (list :idle-timeout
                                                    idle-timeout)))))
         (ollama-cancelled (condition)
