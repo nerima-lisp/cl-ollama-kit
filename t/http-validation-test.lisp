@@ -105,17 +105,7 @@
                              (lambda ()
                                (ollama-kit::%ensure-header nil "x-test" 7))))))
           (it "validates base URLs, paths, and configured client limits"
-              (let ((boundary
-                     (cl-boundary-kit:make-network-boundary :request-fn
-                                                            (lambda
-                                                                (request &key
-                                                                         timeout)
-                                                              (declare (ignore
-                                                                        request
-                                                                        timeout))
-                                                              (response-with-text
-                                                               "{}")))))
-                (assert
+              (let ((http-client (http-kit/client:make-http-client :default-timeout nil))) (assert
                  (equal "http://localhost:11434/api"
                         (ollama-kit::%trim-base-url
                          "http://localhost:11434/api///")))
@@ -242,87 +232,64 @@
                    (%signals-p 'ollama-argument-error
                                (lambda ()
                                  (ollama-kit::%validate-request-path path)))))
-                (assert
-                 (%signals-p 'ollama-argument-error
-                             (lambda ()
-                               (make-client))))
-                (let ((default-client (make-client :network-boundary boundary)))
+                (let ((default-client (make-client))) (unwind-protect (assert (ollama-kit:client-p default-client)) (close-client default-client)))
+                (let ((default-client (make-client :http-client http-client)))
                   (assert
                    (equal ollama-kit::+default-base-url+
                           (ollama-kit::client-base-url default-client))))
                 (let ((zero-timeout-client
-                       (make-client :network-boundary boundary :timeout 0)))
+                       (make-client :http-client http-client :timeout 0)))
                   (assert
                    (zerop (ollama-kit::client-timeout zero-timeout-client))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :network-boundary
-                                            boundary
-                                            :timeout
+                               (make-client :http-client http-client :timeout
                                             -1))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :network-boundary
-                                            boundary
-                                            :timeout
+                               (make-client :http-client http-client :timeout
                                             "1"))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :network-boundary
-                                            boundary
-                                            :allow-insecure-http
+                               (make-client :http-client http-client :allow-insecure-http
                                             1))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :network-boundary
-                                            boundary
-                                            :api-key
+                               (make-client :http-client http-client :api-key
                                             7))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :network-boundary
-                                            boundary
-                                            :api-key
+                               (make-client :http-client http-client :api-key
                                             ""))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :network-boundary
-                                            boundary
-                                            :api-key
+                               (make-client :http-client http-client :api-key
                                             (format nil "bad~Ckey" #\Newline)))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :network-boundary
-                                            boundary
-                                            :max-input-length
+                               (make-client :http-client http-client :max-input-length
                                             0))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :network-boundary
-                                            boundary
-                                            :max-request-length
+                               (make-client :http-client http-client :max-request-length
                                             0))))
                 (assert
                  (%signals-p 'ollama-argument-error
                              (lambda ()
-                               (make-client :network-boundary
-                                            boundary
-                                            :api-key
+                               (make-client :http-client http-client :api-key
                                             "secret"
                                             :headers
                                             '(("authorization" . "Basic x"))))))
                 (let ((client
-                       (make-client :network-boundary
-                                    boundary
-                                    :base-url
+                       (make-client :http-client http-client :base-url
                                     "http://example.test/api"
                                     :api-key
                                     "secret"
