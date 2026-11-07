@@ -46,8 +46,7 @@
                    (push-model json-client "model")))
                 (assert (coverage-path-p (car captured) "/api/push"))
                 (coverage-stream-call
-                 (lambda ()
-                   (chat-stream stream-client "model" #())))
+                 (lambda (event-function) (chat-stream stream-client "model" #() event-function)))
                 (assert (coverage-path-p (car captured) "/api/chat"))
                 (coverage-json-call
                  (lambda ()
@@ -60,16 +59,13 @@
                           "5m")))
                 (assert (coverage-path-p (car captured) "/api/embed"))
                 (coverage-stream-call
-                 (lambda ()
-                   (create-model-stream stream-client "model")))
+                 (lambda (event-function) (create-model-stream stream-client "model" event-function)))
                 (assert (coverage-path-p (car captured) "/api/create"))
                 (coverage-stream-call
-                 (lambda ()
-                   (pull-model-stream stream-client "model")))
+                 (lambda (event-function) (pull-model-stream stream-client "model" event-function)))
                 (assert (coverage-path-p (car captured) "/api/pull"))
                 (coverage-stream-call
-                 (lambda ()
-                   (push-model-stream stream-client "model")))
+                 (lambda (event-function) (push-model-stream stream-client "model" event-function)))
                 (assert (coverage-path-p (car captured) "/api/push")))))
 
 (describe "web endpoint families"
@@ -150,15 +146,12 @@
                                     (format nil "data: {}~%~%data: [DONE]~%~%"))))))
            (body (json-object "model" "model")))
       (coverage-stream-call
-       (lambda ()
-         (openai-chat-completions-stream client body)))
+       (lambda (event-function) (openai-chat-completions-stream client body event-function)))
       (assert (coverage-path-p (car captured) "/v1/chat/completions"))
       (assert (eq t (gethash "stream" (request-json-object (car captured)))))
       (coverage-stream-call
-       (lambda ()
-         (openai-completions-stream client body)))
+       (lambda (event-function) (openai-completions-stream client body event-function)))
       (assert (coverage-path-p (car captured) "/v1/completions"))
       (coverage-stream-call
-       (lambda ()
-         (openai-responses-stream client body)))
+       (lambda (event-function) (openai-responses-stream client body event-function)))
       (assert (coverage-path-p (car captured) "/v1/responses"))))

@@ -147,36 +147,33 @@
                              (lambda ()
                                (embed client "model" "text" :keep-alive 5))))))
           (it "sends image generation controls for native streaming"
-              (let ((captured nil)
-                    (stream nil))
-                (setf stream (generate-stream
-                              (client-with-request-function
-                               (lambda (request &key timeout)
-                                 (declare (ignore timeout))
-                                 (setf captured request)
-                                 (make-http-response :status
-                                                     200
-                                                     :headers
-                                                     '(("content-type" .
-                                                                       "application/x-ndjson"))
-                                                     :stream
-                                                     (make-string-input-stream
-                                                      (format nil "{}~%")))))
-                              "model"
-                              "draw"
-                              :width
-                              1024
-                              :height
-                              768
-                              :steps
-                              12))
-                (unwind-protect
-                    (let ((body (request-json-object captured)))
-                      (assert (= 1024 (gethash "width" body)))
-                      (assert (= 768 (gethash "height" body)))
-                      (assert (= 12 (gethash "steps" body)))
-                      (assert (eq t (gethash "stream" body))))
-                  (stream-close stream))))
+    (let ((captured nil)
+          (events nil))
+      (generate-stream
+       (client-with-request-function
+        (lambda (request &key timeout)
+          (declare (ignore timeout))
+          (setf captured request)
+          (make-http-response :status
+                              200
+                              :headers
+                              '(("content-type" . "application/x-ndjson"))
+                              :stream
+                              (make-string-input-stream (format nil "{}~%")))) )
+       "model"
+       "draw"
+       (lambda (event)
+         (push event events))
+       :width 1024
+       :height 768
+       :steps 12)
+      (let ((body (request-json-object captured)))
+        (assert (= 1024 (gethash "width" body)))
+        (assert (= 768 (gethash "height" body)))
+        (assert (= 12 (gethash "steps" body)))
+        (assert (eq t (gethash "stream" body)))
+        (assert (= 1 (length events)))
+        (assert (hash-table-p (first events))))))
           (it "sends create renderer and parser options"
               (let ((captured nil))
                 (let ((client

@@ -22,12 +22,12 @@
     (assert (hash-table-p value))))
 
 (defun coverage-stream-call (operation)
-  (let ((stream (funcall operation)))
-    (unwind-protect
-        (multiple-value-bind (event present-p) (stream-next stream)
-          (assert (hash-table-p event))
-          (assert present-p))
-      (stream-close stream))))
+  (let ((event-count 0))
+    (funcall operation
+             (lambda (event)
+               (assert (hash-table-p event))
+               (incf event-count)))
+    (assert (= 1 event-count))))
 
 (defun coverage-path-p (request path)
   (assert (http-request-p request))

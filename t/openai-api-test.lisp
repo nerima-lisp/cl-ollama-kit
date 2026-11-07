@@ -100,120 +100,102 @@
                   (equal "json_object"
                          (gethash "type" (gethash "response_format" sent))))))))
           (it "supports text completions as JSON and SSE"
-              (let ((captured (list nil))
-                    (stream nil)
-                    (body (json-object "model" "model" "prompt" "Hello")))
-                (let ((value
-                       (openai-completions
-                        (openai-client-with-request-function
-                         (lambda (request &key timeout)
-                           (declare (ignore timeout))
-                           (setf (car captured) request)
-                           (response-with-text
-                            "{\"id\":\"cmpl-1\",\"object\":\"text_completion\",\"choices\":[{\"text\":\"Hi\",\"index\":0,\"finish_reason\":\"stop\"}]}")))
-                        body)))
-                  (let* ((request (car captured))
-                         (choices (gethash "choices" value))
-                         (choice (aref choices 0)))
-                    (assert (hash-table-p value))
-                    (assert (http-request-p request))
-                    (assert (eq :post (http-request-method request)))
-                    (assert
-                     (string= "http://localhost:11434/v1/completions"
-                              (http-request-url request)))
-                    (assert (equal "cmpl-1" (gethash "id" value)))
-                    (assert (equal "text_completion" (gethash "object" value)))
-                    (assert (equal "Hi" (gethash "text" choice)))
-                    (assert
-                     (equal "Hello"
-                            (gethash "prompt" (request-json-object request))))))
-                (setf stream (openai-completions-stream
-                              (openai-client-with-request-function
-                               (lambda (request &key timeout)
-                                 (declare (ignore timeout))
-                                 (setf (car captured) request)
-                                 (make-http-response :status
-                                                     200
-                                                     :headers
-                                                     '(("content-type" .
-                                                                       "text/event-stream"))
-                                                     :stream
-                                                     (make-string-input-stream
-                                                      (format nil
-                                                              "data: {\"choices\":[{\"text\":\"Hi\"}]}~%~%data: [DONE]~%~%")))))
-                              body))
-                (unwind-protect
-                    (progn
-                      (multiple-value-bind (event present-p)
-                          (stream-next stream)
-                        (assert present-p)
-                        (let* ((choices (gethash "choices" event))
-                               (choice (aref choices 0)))
-                          (assert (equal "Hi" (gethash "text" choice)))))
-                      (multiple-value-bind (event present-p)
-                          (stream-next stream)
-                        (declare (ignore event))
-                        (assert (not present-p)))
-                      (let ((request (car captured)))
-                        (assert (http-request-p request))
-                        (assert (eq :post (http-request-method request)))
-                        (assert
-                         (string= "http://localhost:11434/v1/completions"
-                                  (http-request-url request)))
-                        (assert
-                         (eq t (gethash "stream" (request-json-object request))))))
-                  (when stream
-                    (stream-close stream)))))
-          (it "parses chat completion SSE and forces stream mode in the request"
-              (let ((captured (list nil))
-                    (stream nil))
-                (setf stream (openai-chat-completions-stream
-                              (openai-client-with-request-function
-                               (lambda (request &key timeout)
-                                 (declare (ignore timeout))
-                                 (setf (car captured) request)
-                                 (make-http-response :status
-                                                     200
-                                                     :headers
-                                                     '(("content-type" .
-                                                                       "text/event-stream"))
-                                                     :stream
-                                                     (make-string-input-stream
-                                                      (format nil
-                                                              "event: message~%data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}~%~%data: [DONE]~%~%")))))
-                              (json-object "model" "model" "messages" #())
+    (let ((captured (list nil))
+          (events nil)
+          (body (json-object "model" "model" "prompt" "Hello")))
+      (let ((value
+             (openai-completions
+              (openai-client-with-request-function
+               (lambda (request &key timeout)
+                 (declare (ignore timeout))
+                 (setf (car captured) request)
+                 (response-with-text
+                  "{\"id\":\"cmpl-1\",\"object\":\"text_completion\",\"choices\":[{\"text\":\"Hi\",\"index\":0,\"finish_reason\":\"stop\"}]}")))
+              body)))
+        (let* ((request (car captured))
+               (choices (gethash "choices" value))
+               (choice (aref choices 0)))
+          (assert (hash-table-p value))
+          (assert (http-request-p request))
+          (assert (eq :post (http-request-method request)))
+          (assert
+           (string= "http://localhost:11434/v1/completions"
+                    (http-request-url request)))
+          (assert (equal "cmpl-1" (gethash "id" value)))
+          (assert (equal "Hi" (gethash "text" choice)))
+          (assert
+           (equal "Hello" (gethash "prompt" (request-json-object request))))))
+      (openai-completions-stream
+       (openai-client-with-request-function
+        (lambda (request &key timeout)
+          (declare (ignore timeout))
+          (setf (car captured) request)
+          (make-http-response :status
+                              200
                               :headers
-                              '(("Accept" . "application/x-ndjson"))))
-                (unwind-protect
-                    (progn
-                      (multiple-value-bind (event present-p)
-                          (stream-next stream)
-                        (assert present-p)
-                        (let* ((choices (gethash "choices" event))
-                               (choice (aref choices 0))
-                               (delta (gethash "delta" choice)))
-                          (assert (equal "Hi" (gethash "content" delta)))))
-                      (multiple-value-bind (event present-p)
-                          (stream-next stream)
-                        (declare (ignore event))
-                        (assert (not present-p)))
-                      (let ((request (car captured)))
-                        (assert (http-request-p request))
-                        (assert (eq :post (http-request-method request)))
-                        (assert
-                         (string= "http://localhost:11434/v1/chat/completions"
-                                  (http-request-url request)))
-                        (assert
-                         (equal "text/event-stream"
-                                (cdr
-                                 (assoc "Accept"
-                                        (http-request-headers request)
-                                        :test
-                                        #'string-equal))))
-                        (assert
-                         (eq t (gethash "stream" (request-json-object request))))))
-                  (when stream
-                    (stream-close stream)))))
+                              '(("content-type" . "text/event-stream"))
+                              :stream
+                              (make-string-input-stream
+                               (format nil
+                                       "data: {\"choices\":[{\"text\":\"Hi\"}]}~%~%data: [DONE]~%~%"))))
+       body
+       (lambda (event)
+         (push event events)))
+      (let* ((request (car captured))
+             (event (first events))
+             (choices (gethash "choices" event))
+             (choice (aref choices 0)))
+        (assert (= 1 (length events)))
+        (assert (equal "Hi" (gethash "text" choice)))
+        (assert (http-request-p request))
+        (assert (eq :post (http-request-method request)))
+        (assert
+         (string= "http://localhost:11434/v1/completions"
+                  (http-request-url request)))
+        (assert
+         (eq t (gethash "stream" (request-json-object request)))))))
+)
+          (it "parses chat completion SSE and forces stream mode in the request"
+    (let ((captured (list nil))
+          (events nil))
+      (openai-chat-completions-stream
+       (openai-client-with-request-function
+        (lambda (request &key timeout)
+          (declare (ignore timeout))
+          (setf (car captured) request)
+          (make-http-response :status
+                              200
+                              :headers
+                              '(("content-type" . "text/event-stream"))
+                              :stream
+                              (make-string-input-stream
+                               (format nil
+                                       "event: message~%data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}~%~%data: [DONE]~%~%"))))
+       (json-object "model" "model" "messages" #())
+       (lambda (event)
+         (push event events))
+       :headers
+       '(("Accept" . "application/x-ndjson")))
+      (let* ((request (car captured))
+             (event (first events))
+             (choices (gethash "choices" event))
+             (choice (aref choices 0))
+             (delta (gethash "delta" choice)))
+        (assert (= 1 (length events)))
+        (assert (equal "Hi" (gethash "content" delta)))
+        (assert (http-request-p request))
+        (assert (eq :post (http-request-method request)))
+        (assert
+         (string= "http://localhost:11434/v1/chat/completions"
+                  (http-request-url request)))
+        (assert
+         (equal "text/event-stream"
+                (cdr (assoc "Accept"
+                            (http-request-headers request)
+                            :test #'string-equal))))
+        (assert
+         (eq t (gethash "stream" (request-json-object request)))))))
+)
           (it "sends embeddings requests and parses the returned vector"
               (let ((captured (list nil))
                     (body
@@ -287,58 +269,47 @@
                     (assert (equal "output_text" (gethash "type" content)))
                     (assert (equal "Hello" (gethash "text" content)))))))
           (it "supports responses as SSE and observes completion"
-              (let ((captured (list nil))
-                    (stream nil)
-                    (body (json-object "model" "model" "input" "Hello")))
-                (setf stream (openai-responses-stream
-                              (openai-client-with-request-function
-                               (lambda (request &key timeout)
-                                 (declare (ignore timeout))
-                                 (setf (car captured) request)
-                                 (make-http-response :status
-                                                     200
-                                                     :headers
-                                                     '(("content-type" .
-                                                                       "text/event-stream"))
-                                                     :stream
-                                                     (make-string-input-stream
-                                                      (format nil
-                                                              "event: response.created~%data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}~%~%event: response.completed~%data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\"}}~%~%data: [DONE]~%~%")))))
-                              body))
-                (unwind-protect
-                    (progn
-                      (multiple-value-bind (event present-p)
-                          (stream-next stream)
-                        (assert present-p)
-                        (assert
-                         (equal "response.created" (gethash "type" event)))
-                        (assert
-                         (equal "resp_1"
-                                (gethash "id" (gethash "response" event)))))
-                      (multiple-value-bind (event present-p)
-                          (stream-next stream)
-                        (assert present-p)
-                        (assert
-                         (equal "response.completed" (gethash "type" event)))
-                        (assert
-                         (equal "completed"
-                                (gethash "status" (gethash "response" event)))))
-                      (multiple-value-bind (event present-p)
-                          (stream-next stream)
-                        (declare (ignore event))
-                        (assert (not present-p)))
-                      (let ((request (car captured)))
-                        (assert (http-request-p request))
-                        (assert (eq :post (http-request-method request)))
-                        (assert
-                         (string= "http://localhost:11434/v1/responses"
-                                  (http-request-url request)))
-                        (let ((sent (request-json-object request)))
-                          (assert (equal "model" (gethash "model" sent)))
-                          (assert (equal "Hello" (gethash "input" sent)))
-                          (assert (eq t (gethash "stream" sent))))))
-                  (when stream
-                    (stream-close stream))))))
+    (let ((captured (list nil))
+          (events nil)
+          (body (json-object "model" "model" "input" "Hello")))
+      (openai-responses-stream
+       (openai-client-with-request-function
+        (lambda (request &key timeout)
+          (declare (ignore timeout))
+          (setf (car captured) request)
+          (make-http-response :status
+                              200
+                              :headers
+                              '(("content-type" . "text/event-stream"))
+                              :stream
+                              (make-string-input-stream
+                               (format nil
+                                       "event: response.created~%data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}~%~%event: response.completed~%data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\"}}~%~%data: [DONE]~%~%"))))
+       body
+       (lambda (event)
+         (push event events)))
+      (let* ((request (car captured))
+             (ordered-events (nreverse events))
+             (created (first ordered-events))
+             (completed (second ordered-events)))
+        (assert (= 2 (length ordered-events)))
+        (assert (equal "response.created" (gethash "type" created)))
+        (assert
+         (equal "resp_1" (gethash "id" (gethash "response" created))))
+        (assert (equal "response.completed" (gethash "type" completed)))
+        (assert
+         (equal "completed"
+                (gethash "status" (gethash "response" completed))))
+        (assert (http-request-p request))
+        (assert (eq :post (http-request-method request)))
+        (assert
+         (string= "http://localhost:11434/v1/responses"
+                  (http-request-url request)))
+        (let ((sent (request-json-object request)))
+          (assert (equal "model" (gethash "model" sent)))
+          (assert (equal "Hello" (gethash "input" sent)))
+          (assert (eq t (gethash "stream" sent)))))))
+))
 
 (it "supports experimental image generation with the documented fields"
     (let* ((captured (list nil))

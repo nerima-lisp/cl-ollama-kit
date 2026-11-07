@@ -61,38 +61,32 @@
                  (equal "provided"
                         (cdr (assoc "x-api-key" headers :test #'string-equal))))))
           (it "forces streaming and decodes Anthropic SSE events"
-              (let ((captured nil)
-                    (stream nil))
-                (let ((client
-                       (anthropic-client-with-request-function
-                        (lambda (request &key timeout)
-                          (declare (ignore timeout))
-                          (setf captured request)
-                          (make-http-response :status
-                                              200
-                                              :headers
-                                              '(("content-type" .
-                                                                "text/event-stream"))
-                                              :stream
-                                              (make-string-input-stream
-                                               (format nil
-                                                       "event: message_start~%data: {\"type\":\"message_start\"}~%~%data: [DONE]~%~%"))))))
-                      (body (json-object "model" "model" "stream" nil)))
-                  (setf stream (anthropic-messages-stream client body)))
-                (unwind-protect
-                    (progn
-                      (assert (equal :post (http-request-method captured)))
-                      (assert
-                       (equal "http://localhost:11434/v1/messages"
-                              (http-request-url captured)))
-                      (let ((body (request-json-object captured)))
-                        (assert (eq t (gethash "stream" body))))
-                      (multiple-value-bind (event present-p)
-                          (stream-next stream)
-                        (assert present-p)
-                        (assert (equal "message_start" (gethash "type" event))))
-                      (multiple-value-bind (event present-p)
-                          (stream-next stream)
-                        (declare (ignore event))
-                        (assert (not present-p))))
-                  (stream-close stream)))))
+  (let ((captured nil)
+        (events nil))
+    (let ((client
+           (anthropic-client-with-request-function
+            (lambda (request &key timeout)
+              (declare (ignore timeout))
+              (setf captured request)
+              (make-http-response :status
+                                  200
+                                  :headers
+                                  (list (cons "content-type" "text/event-stream"))
+                                  :stream
+                                  (make-string-input-stream
+                                   (format nil
+                                           "event: message_start~%data: {\"type\":\"message_start\"}~%~%data: [DONE]~%~%"))))))
+          (body (json-object "model" "model" "stream" nil)))
+      (anthropic-messages-stream client
+                                 body
+                                 (lambda (event)
+                                   (push event events)))
+      (assert (equal :post (http-request-method captured)))
+      (assert
+       (equal "http://localhost:11434/v1/messages"
+              (http-request-url captured)))
+      (let ((request-body (request-json-object captured)))
+        (assert (eq t (gethash "stream" request-body))))
+      (assert (= 1 (length events)))
+      (assert (equal "message_start"
+                     (gethash "type" (first events))))))))
