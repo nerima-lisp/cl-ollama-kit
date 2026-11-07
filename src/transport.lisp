@@ -158,11 +158,11 @@ header with the same name. NIL suppresses the default header."
                              (adjust-array response-body
                                            new-capacity
                                            :fill-pointer used))))
+                   (setf (fill-pointer response-body) new-size)
                    (replace response-body chunk
                             :start1 used
                             :end1 new-size
                             :end2 accepted)
-                   (setf (fill-pointer response-body) new-size)
                    (> (length chunk) accepted)))
                (response-with-body (response)
                  (make-http-response
