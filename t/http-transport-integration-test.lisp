@@ -221,12 +221,29 @@
                   (close-client client)
                   (%assert-loopback-server-cleaned server))))
           (it-each
-           (("total request deadline" :no-response 0.3 nil nil :total)
-            ("response header deadline" :no-response nil 0.3 nil :response)
-            ("idle body deadline" :stalled-body nil nil 0.3 :idle)
-            ("external cancellation" :no-response 1.5 nil nil :cancel))
+           (("total request deadline" :no-response 0.3 nil nil :total nil)
+            ("response header deadline" :no-response nil 0.3 nil :response nil)
+            ("idle body deadline" :stalled-body nil nil 0.3 :idle nil)
+            ("external cancellation" :no-response 1.5 nil nil :cancel nil)
+            ("default options before response headers" :no-response
+                                                       nil
+                                                       nil
+                                                       nil
+                                                       :cancel
+                                                       t)
+            ("default options during a stalled body" :stalled-body
+                                                     nil
+                                                     nil
+                                                     nil
+                                                     :cancel
+                                                     t))
            "signals the expected transport condition for ~A and releases the peer"
-           (name behavior timeout response-timeout idle-timeout expected-kind)
+           (name behavior
+                 timeout
+                 response-timeout
+                 idle-timeout
+                 expected-kind
+                 default-timeouts-p)
            (let* ((chunk
                    (cl-codec-kit:string-to-octets
                     (format nil "{\"response\":\"first\",\"done\":false}~%")
@@ -236,39 +253,54 @@
                    (make-loopback-http-server :behavior
                                               behavior
                                               :chunks
-                                              (when (eq expected-kind :idle)
+                                              (when (eq behavior :stalled-body)
                                                 (list chunk))))
                   (client (%http-test-client server))
                   (cancel-token
                    (when (eq expected-kind :cancel)
                      (http-kit/client:make-http-cancellation-token)))
                   (cancel-sent-p nil)
+                  (events nil)
                   (cancel-thread
                    (when cancel-token
                      (sb-thread:make-thread
                       (lambda ()
                         (when (%await-loopback-request server 1)
+                          (when
+                              (and default-timeouts-p
+                                   (eq behavior :stalled-body))
+                            (loop repeat 200
+                                  while (null events)
+                                  do (sleep 0.005)))
                           (setf cancel-sent-p (http-kit/client:http-client-cancel-request
                                                cancel-token))))
                       :name
                       "cl-ollama-kit-test-cancel-sender")))
-                  (events nil)
                   (condition
                    (%capture-http-test-error
                     (lambda ()
-                      (generate-stream client
-                                       "tiny"
-                                       "prompt"
-                                       (lambda (event)
-                                         (push event events))
-                                       :timeout
-                                       timeout
-                                       :response-timeout
-                                       response-timeout
-                                       :idle-timeout
-                                       idle-timeout
-                                       :cancel-token
-                                       cancel-token))))
+                      (let ((callback
+                             (lambda (event)
+                               (push event events))))
+                        (if default-timeouts-p
+                            (generate-stream client
+                                             "tiny"
+                                             "prompt"
+                                             callback
+                                             :cancel-token
+                                             cancel-token)
+                            (generate-stream client
+                                             "tiny"
+                                             "prompt"
+                                             callback
+                                             :timeout
+                                             timeout
+                                             :response-timeout
+                                             response-timeout
+                                             :idle-timeout
+                                             idle-timeout
+                                             :cancel-token
+                                             cancel-token))))))
                   (cancel-thread-joined-p
                    (%join-http-test-thread cancel-thread 2)))
              (unwind-protect
@@ -291,8 +323,7 @@
                        (assert (typep condition 'ollama-idle-timeout))
                        (assert
                         (typep (ollama-transport-error-cause condition)
-                               'http-kit/client:http-client-request-cancelled))
-                       (assert (= 1 (length events))))
+                               'http-kit/client:http-client-request-cancelled)))
                      (:cancel
                        (assert cancel-sent-p)
                        (assert cancel-thread-joined-p)
@@ -300,6 +331,8 @@
                        (assert
                         (typep (ollama-transport-error-cause condition)
                                'http-kit/client:http-client-request-cancelled))))
+                   (when (eq behavior :stalled-body)
+                     (assert (= 1 (length events))))
                    (assert (loopback-http-server-await-eof server 1.5)))
                (when cancel-thread
                  (unless cancel-thread-joined-p
