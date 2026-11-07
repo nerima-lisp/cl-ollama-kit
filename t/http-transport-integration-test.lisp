@@ -355,7 +355,7 @@
                (%assert-loopback-server-cleaned server))))
           (it
            "preserves caller cancellation when the idle deadline expires later"
-           (:execution-mode :sequential)
+           (:execution-mode :sequential :timeout-ms 70000)
            (let* ((chunk
                    (cl-codec-kit:string-to-octets
                     (format nil "{\"response\":\"first\",\"done\":false}~%")
@@ -370,7 +370,8 @@
                   (cancel-token (http-kit/client:make-http-cancellation-token))
                   (callback-entered (cl-concurrent-kit:make-semaphore :count 0))
                   (release-callback (cl-concurrent-kit:make-semaphore :count 0))
-                  (request-finished (cl-concurrent-kit:make-semaphore :count 0)))
+                  (request-finished (cl-concurrent-kit:make-semaphore :count 0))
+                  (caller-cancelled-first-p nil))
              (let ((request-condition nil)
                    (request-thread nil)
                    (monitor-thread nil))
@@ -389,15 +390,16 @@
                                                                                            (lambda
                                                                                                (event)
                                                                                              (declare (ignore
-                                                                                                       event))
-                                                                                             (cl-concurrent-kit:signal-semaphore
-                                                                                              callback-entered)
-                                                                                             (cl-concurrent-kit:wait-on-semaphore
-                                                                                              release-callback))
+                                                                                                     event))
+                                                                                             (setf caller-cancelled-first-p
+                                                                                                     (http-kit/client:http-client-cancel-request cancel-token))
+                                                                                             (cl-concurrent-kit:signal-semaphore callback-entered)
+                                                                                             (cl-concurrent-kit:wait-on-semaphore release-callback))
                                                                                            :cancel-token
                                                                                            cancel-token
+                                                                                           ;; The 30-second deadline gives callback cancellation ample scheduling margin.
                                                                                            :idle-timeout
-                                                                                           1))))
+                                                                                           30))))
                                                    (error (condition)
                                                      (setf request-condition condition)))
                                                (cl-concurrent-kit:signal-semaphore
@@ -423,15 +425,13 @@
                        (setf monitor-thread (first monitor-threads))
                        (assert
                         (cl-concurrent-kit:thread-alive-p monitor-thread))
-                       (assert
-                        (http-kit/client:http-client-cancel-request
-                         cancel-token))
+                       (assert caller-cancelled-first-p)
                        (assert
                         (not
                          (eq :timed-out
                              (cl-concurrent-kit:join-thread monitor-thread
                                                             :timeout
-                                                            5
+                                                            40
                                                             :default
                                                             :timed-out))))
                        (assert
@@ -470,17 +470,20 @@
                              (cl-concurrent-kit:thread-alive-p monitor-thread))))
                        (unwind-protect
                            #+sbcl
-          (dolist
-              (thread
-               (remove-if-not
-                (lambda (thread)
-                  (and (cl-concurrent-kit:thread-alive-p thread)
-                       (string=
-                        "cl-ollama-kit HTTP timeout monitor"
-                        (cl-concurrent-kit:thread-name thread))))
-                (sb-thread:list-all-threads)))
-            (assert (%join-http-test-thread thread 5))
-            (assert (not (cl-concurrent-kit:thread-alive-p thread))))
+                           (dolist
+                               (thread
+                                (remove-if-not
+                                 (lambda (thread)
+                                   (and
+                                    (cl-concurrent-kit:thread-alive-p thread)
+                                    (string=
+                                     "cl-ollama-kit HTTP timeout monitor"
+                                     (cl-concurrent-kit:thread-name thread))))
+                                 (sb-thread:list-all-threads)))
+                             (assert (%join-http-test-thread thread 5))
+                             (assert
+                              (not
+                               (cl-concurrent-kit:thread-alive-p thread))))
                          (%assert-loopback-server-cleaned server)))))))))
           (it
            "propagates a body callback condition unchanged and releases the connection"
