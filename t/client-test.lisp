@@ -152,13 +152,20 @@
                (assert (equal expected-message
                               (ollama-error-message condition))))))
           (it-each
-           (("invalid header name" '(("Bad Header" . "value")))
-            ("header injection"
-             (("X-Test" . "ok\r\nInjected: yes"))))
+           (("invalid header name" "Bad Header" "value" nil nil)
+            ("header injection" "X-Test" "ok" #\Return #\Linefeed))
            "rejects ~A in client headers"
-           (name headers)
+           (name header-name header-value cr lf)
            (let ((condition nil))
-             (handler-case (make-client :headers headers)
+             (handler-case
+                 (make-client
+                  :headers
+                  (list
+                   (cons header-name
+                         (if cr
+                             (format nil "~A~C~CInjected: yes"
+                                     header-value cr lf)
+                             header-value))))
                (ollama-argument-error (caught)
                  (setf condition caught)))
              (assert (typep condition 'ollama-argument-error))))

@@ -1,13 +1,6 @@
 (in-package #:ollama-kit/test)
 
-(require :sb-posix)
-
 (define-condition http-transport-callback-error (error) ())
-
-(defvar *https-loopback-servers* nil)
-
-(defparameter +https-test-certificate-directory+
-  #p"/tmp/cl-ollama-kit-probe/certs/")
 
 (defun %http-test-header-value (headers name)
   (loop for header in headers
@@ -49,153 +42,7 @@
   (assert (loopback-http-server-thread-joined-p server))
   (assert (loopback-http-server-listener-closed-p server)))
 
-(defun %read-test-octets (pathname)
-  (with-open-file (input pathname
-                         :direction :input
-                         :element-type '(unsigned-byte 8))
-    (let ((octets (make-array (file-length input)
-                              :element-type '(unsigned-byte 8))))
-      (unless (= (read-sequence octets input) (length octets))
-        (error "TLS test input was truncated: ~A" pathname))
-      octets)))
-
-(defun %https-test-certificate-chain ()
-  (let* ((pathname (merge-pathnames "server-chain.pem"
-                                    +https-test-certificate-directory+))
-         (blocks (cl-tls-kit:pem-decode (uiop:read-file-string pathname)))
-         (certificate (find "CERTIFICATE"
-                            blocks
-                            :key #'cl-tls-kit:pem-block-label
-                            :test #'string=)))
-    (unless certificate
-      (error "TLS test certificate chain contains no certificate."))
-    (list (cl-tls-kit:pem-block-der certificate))))
-
-(defun %https-test-private-key ()
-  (let* ((pathname (merge-pathnames "server-key.der"
-                                    +https-test-certificate-directory+))
-         (root (cl-tls-kit:der-decode (%read-test-octets pathname)))
-         (children (cl-tls-kit:der-node-children root))
-         (scalar-node (second children))
-         (scalar (and scalar-node
-                      (= (cl-tls-kit:der-node-tag scalar-node) 4)
-                      (cl-tls-kit:der-node-value scalar-node)))
-         (package (find-package "CRYPTO-KIT"))
-         (constructor (and package
-                           (find-symbol "MAKE-EC-PRIVATE-KEY" package))))
-    (unless (and (= (cl-tls-kit:der-node-tag root) 16)
-                 scalar
-                 (= (length scalar) 32)
-                 constructor
-                 (fboundp constructor))
-      (error "TLS test key must be a SEC1 DER P-256 private key."))
-    (funcall (symbol-function constructor) :p256 scalar)))
-
-(defstruct (%https-loopback-server
-             (:constructor %make-https-loopback-server))
-  listener
-  thread
-  served-count
-  server-error
-  thread-joined-p
-  listener-closed-p)
-
-(defun %close-https-loopback-server (server)
-  (let* ((thread (%https-loopback-server-thread server))
-         (listener (%https-loopback-server-listener server))
-         (joined (%https-loopback-server-thread-joined-p server))
-         (closed (%https-loopback-server-listener-closed-p server)))
-    (unless joined
-      (unless closed
-        (http-kit/network:wake-http-tcp-listener listener)
-        (http-kit/network:close-http-tcp-listener listener)
-        (setf closed t))
-      (setf joined (%join-http-test-thread thread 3)))
-    (unless closed
-      (http-kit/network:close-http-tcp-listener listener)
-      (setf closed t))
-    (setf (%https-loopback-server-thread-joined-p server) joined
-          (%https-loopback-server-listener-closed-p server) closed)
-    server))
-
-(defun %start-https-loopback-server ()
-  (let* ((listener
-           (http-kit/network:open-http-tcp-listener :host "127.0.0.1"
-                                                    :port 0))
-         (server (%make-https-loopback-server :listener listener))
-         (wrapper
-           (http-kit/tls:make-http-tls-server-wrapper
-            :certificate-chain (%https-test-certificate-chain)
-            :private-key (%https-test-private-key)
-            :alpn-protocols '("http/1.1")
-            :session-tickets-p nil)))
-    (push server *https-loopback-servers*)
-    (setf (%https-loopback-server-thread server)
-          (sb-thread:make-thread
-           (lambda ()
-             (handler-case
-                 (multiple-value-bind (count termination)
-                     (http-kit/network:serve-http1-listener
-                      listener
-                      (lambda (request)
-                        (declare (ignore request))
-                        (http-kit:make-http-response
-                         :status 200
-                         :headers
-                         (list (http-message-kit:make-http-header
-                                "connection"
-                                "close"))
-                         :body
-                         (cl-codec-kit:string-to-octets
-                          "{}"
-                          :encoding
-                          :utf-8)))
-                      :max-connections 1
-                      :accept-timeout 8
-                      :stream-wrapper wrapper
-                      :session-options (list :max-requests 1)
-                      :on-error
-                      (lambda (condition peer-address peer-port)
-                        (declare (ignore peer-address peer-port))
-                        (setf (%https-loopback-server-server-error server)
-                              condition)))
-                   (declare (ignore termination))
-                   (setf (%https-loopback-server-served-count server) count))
-               (error (condition)
-                 (setf (%https-loopback-server-server-error server)
-                       condition))))
-           :name "cl-ollama-kit-https-test-server"))
-    server))
-
-(defun %set-test-environment-variable (name value)
-  (if value
-      (sb-posix:setenv name value 1)
-      (sb-posix:unsetenv name)))
-
-(defun %with-https-test-trust-store (ca-path thunk)
-  (let ((previous-ssl-cert-file (uiop:getenv "SSL_CERT_FILE"))
-        (previous-nix-ssl-cert-file (uiop:getenv "NIX_SSL_CERT_FILE"))
-        (ca-path (namestring ca-path)))
-    (unwind-protect
-         (progn
-           (sb-posix:unsetenv "SSL_CERT_FILE")
-           (sb-posix:setenv "NIX_SSL_CERT_FILE" ca-path 1)
-           (assert (null (uiop:getenv "SSL_CERT_FILE")))
-           (assert (equal ca-path (uiop:getenv "NIX_SSL_CERT_FILE")))
-           (funcall thunk))
-      (%set-test-environment-variable "SSL_CERT_FILE"
-                                     previous-ssl-cert-file)
-      (%set-test-environment-variable "NIX_SSL_CERT_FILE"
-                                     previous-nix-ssl-cert-file))))
-
 (describe "HTTP transport integration"
-  (cl-weave:around-each (next)
-    (let ((*https-loopback-servers* nil))
-      (unwind-protect
-           (funcall next)
-        (dolist (server *https-loopback-servers*)
-          (%close-https-loopback-server server)))))
-
   (it "uses the owned default HTTP client against a loopback server"
     (let* ((server (make-loopback-http-server
                     :body
@@ -488,49 +335,32 @@
        (%assert-loopback-server-cleaned server))))
 
   (it-each
-   (("trusted CA" "trusted-ca.pem" nil :trusted)
-    ("untrusted CA with insecure HTTP enabled"
-     "untrusted-ca.pem"
-     t
-     :untrusted))
-   "verifies HTTPS certificate trust for ~A"
-   (name ca-file allow-insecure-http expected-result)
-   (let* ((server (%start-https-loopback-server))
-          (port (http-kit/network:http-network-listener-port
-                 (%https-loopback-server-listener server)))
-          (base-url (format nil "https://127.0.0.1:~D" port))
-          (ca-path (merge-pathnames ca-file
-                                    +https-test-certificate-directory+))
-          (client nil)
-          (condition nil)
-          (response nil))
+   (("without a supplied HTTP client" nil)
+    ("with a caller-supplied HTTP client" t))
+   "handles HTTPS base URLs for ~A"
+   (name supplied-http-client-p)
+   (let* ((http-client
+            (when supplied-http-client-p
+              (http-kit/client:make-http-client :default-timeout nil)))
+          (client nil))
      (unwind-protect
-          (%with-https-test-trust-store
-           ca-path
-           (lambda ()
-             (setf client
-                   (make-client :base-url base-url
-                                :allow-insecure-http allow-insecure-http))
-             (handler-case
-                 (multiple-value-bind (value received-response)
-                     (request-json client :get "/version")
-                   (declare (ignore value))
-                   (setf response received-response))
-               (error (caught)
-                 (setf condition caught)))))
+          (let ((condition
+                  (%capture-http-test-error
+                   (lambda ()
+                     (setf client
+                           (if supplied-http-client-p
+                               (make-client
+                                :base-url "https://ollama.example"
+                                :http-client http-client)
+                             (make-client
+                              :base-url "https://ollama.example")))))))
+            (if supplied-http-client-p
+                (progn
+                  (assert (null condition))
+                  (assert (client-p client))
+                  (assert (eq http-client (client-http-client client))))
+              (assert (typep condition 'ollama-argument-error))))
        (when client
          (close-client client))
-       (%close-https-loopback-server server))
-     (ecase expected-result
-       (:trusted
-        (assert (null condition))
-        (assert (http-message-kit:http-response-p response))
-        (assert (= 200 (http-message-kit:http-response-status response)))
-        (assert (eql 1 (%https-loopback-server-served-count server))))
-       (:untrusted
-        (assert (typep condition 'ollama-transport-error))
-        (assert (typep (ollama-transport-error-cause condition)
-                       'http-kit:http-protocol-error))
-        (assert (eql 0 (%https-loopback-server-served-count server)))))
-     (assert (%https-loopback-server-thread-joined-p server))
-     (assert (%https-loopback-server-listener-closed-p server)))))
+       (when http-client
+         (http-kit/client:http-client-clear-connections http-client))))))

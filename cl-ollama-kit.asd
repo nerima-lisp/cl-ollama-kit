@@ -55,11 +55,13 @@
                (:version "cl-weave" "1.5.0")
                (:version "cl-sse-kit" "1.1.0")
                (:version "cl-codec-kit" "0.6.0")
-               (:version "cl-boundary-kit" "2.3.0"))
+               (:version "cl-boundary-kit" "2.3.0")
+               (:version "cl-http-kit/network" "0.5.0"))
   :pathname "t"
   :serial t
   :components ((:file "package") (:file "test-support")
                                  (:file "client-test")
+                                 (:file "http-transport-integration-test")
                                  (:file "stream-test")
                                  (:file "native-api-test")
                                  (:file "cps-test")

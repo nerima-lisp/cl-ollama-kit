@@ -1,21 +1,26 @@
 (in-package #:ollama-kit/test)
 
-(defun response (body &key (status 200) (stream nil))
-  (make-http-response :status
-                      status
-                      :headers
-                      `(("content-type" . "application/json"))
-                      :body
-                      (if stream
-                          nil
-                          body)
-                      :stream
-                      stream))
+(defun response (body &key (status 200))
+  (http-message-kit:make-http-response
+   :status status
+   :headers (list (cons "content-type" "application/json"))
+   :body (if (stringp body)
+             (cl-codec-kit:string-to-octets body :encoding :utf-8)
+             body)))
 
 (defun response-with-text (text &key (status 200))
   (response (cl-codec-kit:string-to-octets text :encoding :utf-8)
             :status
             status))
+
+(defun client-with-request-function (request-function &rest options)
+  (apply #'make-client
+         :http-client
+         (http-kit/client:make-http-client
+          :transport-function
+          (lambda (request &key timeout &allow-other-keys)
+            (funcall request-function request :timeout timeout)))
+         options))
 
 (defconstant +loopback-http-max-header-bytes+ 65536)
   (defconstant +loopback-http-max-body-bytes+ 4194304)
@@ -375,8 +380,7 @@
                             (sb-thread:join-thread
                              thread
                              :timeout +loopback-http-thread-join-seconds+
-                             :default :timed-out)))))
-        (%loopback-set-state server :thread-joined-p joined-p))
+                             :default :timed-out)))))) (%loopback-set-state server :thread-joined-p joined-p)
       (when cleanup-error
         (error cleanup-error))
       (values server
@@ -397,7 +401,7 @@
 
 (defun request-json-object (request)
   (json-kit:parse
-   (cl-codec-kit:octets-to-string (http-request-body request) :encoding :utf-8)
+   (cl-codec-kit:octets-to-string (http-message-kit:http-request-body request) :encoding :utf-8)
    :object-type
    :hash-table
    :array-type
