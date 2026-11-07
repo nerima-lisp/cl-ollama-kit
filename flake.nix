@@ -68,7 +68,7 @@
     };
 
     cl-date-kit = {
-      url = "github:nerima-lisp/cl-date-kit/v1.0.0";
+      url = "github:nerima-lisp/cl-date-kit/v1.2.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.cl-weave.follows = "cl-weave";
       inputs.cl-nix-forge.follows = "cl-nix-forge";
@@ -76,18 +76,19 @@
     };
 
     cl-deflate-kit = {
-      url = "github:nerima-lisp/cl-deflate-kit/main";
+      url = "github:nerima-lisp/cl-deflate-kit/v0.4.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.cl-weave.follows = "cl-weave";
     };
 
+    # Keep these roots shared so cl-http-kit and cl-sse-kit do not duplicate TLS/crypto nodes.
     cl-crypto-kit = {
-      url = "github:nerima-lisp/cl-crypto-kit/761e95926923eba809f3e5deac88e68414aef894";
+      url = "github:nerima-lisp/cl-crypto-kit/v0.2.2";
       flake = false;
     };
 
     cl-hpack-codec-kit = {
-      url = "github:nerima-lisp/cl-hpack-codec-kit/08bc4c9ff1bcedb0624ad65d567a5e2d213b7ab9";
+      url = "github:nerima-lisp/cl-hpack-codec-kit/v1.1.2";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.cl-weave.follows = "cl-weave";
     };
@@ -239,7 +240,7 @@
           };
           clHpackCodecKit = forge.lispDerivation {
             pname = "cl-hpack-codec-kit";
-            version = "1.1.1";
+            version = "1.1.2";
             lispSystem = "cl-hpack-codec-kit";
             src = cl-hpack-codec-kit.outPath;
           };

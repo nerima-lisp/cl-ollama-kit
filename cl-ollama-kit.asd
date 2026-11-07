@@ -57,7 +57,11 @@
                (:version "cl-sse-kit" "1.1.0")
                (:version "cl-codec-kit" "0.6.0")
                (:version "cl-boundary-kit" "2.3.0")
-               (:version "cl-http-kit/network" "0.5.0"))
+               (:version "cl-http-kit/client" "0.5.0")
+               (:version "cl-http-kit/network" "0.5.0")
+               (:version "cl-http-message-kit" "2.0.1")
+               (:version "cl-json-kit" "1.2.0")
+               (:version "cl-concurrent-kit" "0.6.1"))
   :pathname "t"
   :serial t
   :components ((:file "package") (:file "test-support")
