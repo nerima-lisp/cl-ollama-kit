@@ -401,8 +401,9 @@
                 (assert (equal "low" (ollama-kit::%json-enum "low")))
                 (assert (equal "low" (ollama-kit::%native-think :low)))
                 (assert (equal "low" (ollama-kit::%native-think "low")))
-                (assert (equal "nil" (ollama-kit::%native-think nil)))
-                (assert (equal "t" (ollama-kit::%native-think t)))
+                (assert
+                 (eq json-kit:+json-false+ (ollama-kit::%native-think nil)))
+                (assert (eq t (ollama-kit::%native-think t)))
                 (assert
                  (eq json-kit:+json-false+
                      (ollama-kit::%native-think json-kit:+json-false+)))))
