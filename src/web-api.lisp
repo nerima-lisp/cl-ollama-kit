@@ -19,6 +19,7 @@
     (error 'ollama-argument-error
            :message
            "Web fetch URLs must be non-empty strings."))
+  (%validate-http-url-components url "Web fetch URLs")
   url)
 
 (defun web-search (client query
