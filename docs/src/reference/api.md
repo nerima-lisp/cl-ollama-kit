@@ -6,7 +6,7 @@ The symbols in this reference are exported from the `ollama-kit` package unless 
 
 ### Base URL constants
 
-`+default-base-url+` is `http://localhost:11434/api`. `+anthropic-default-base-url+` is `http://localhost:11434/v1`. `make-openai-client` uses the same `/v1` default for its base URL.
+`+default-base-url+` is the native API default, `http://localhost:11434/api`. `+openai-default-base-url+` and `+anthropic-default-base-url+` both resolve to `http://localhost:11434/v1`, the default base URL for both compatibility constructors. `+anthropic-default-base-url+` names the Anthropic-specific default.
 
 ### `make-client`
 
@@ -25,6 +25,27 @@ Accepted options:
 - `:max-request-length`
 - `:allow-insecure-http`
 
+| Option | Default | Validation |
+|---|---:|---|
+| `:http-client` | `nil` | `nil` or an `http-kit/client:http-client`. `nil` creates an owned plain HTTP client. |
+| `:timeout` | `nil` | `nil` or a non-negative real number of seconds. It sets one deadline for the whole HTTP exchange. |
+| `:response-timeout` | `300` | `nil` or a non-negative real number of seconds until response headers arrive. |
+| `:idle-timeout` | `120` | `nil` or a non-negative real number of seconds between response body chunks. |
+| `:allow-insecure-http` | `nil` | `nil` or `t`. `t` permits non-loopback plain HTTP. |
+| `:api-key` | `nil` | `nil` or a non-empty string without control characters. `make-client` rejects an explicit `Authorization` header when `:api-key` is set. |
+| `:max-input-length` | `16777216` | A positive integer number of response-body bytes. |
+| `:max-request-length` | `16777216` | A positive integer number of encoded request-body bytes. |
+| `:headers` | `nil` | `nil` or an alist of name/value conses. Names must be strings or symbols containing valid HTTP field-name characters; values must be strings without control characters. |
+| `:base-url` | `"http://localhost:11434/api"` | A non-empty HTTP or HTTPS URL with a valid authority and no userinfo, query, fragment, or dot path segment. Non-loopback plain HTTP also requires `:allow-insecure-http t`. |
+
+Timeout values are measured in seconds. `:response-timeout` and `:idle-timeout`
+are the default progress guards for streaming and non-streaming requests.
+`cl-http-kit` does not set a connect-only timeout, so DNS lookup and TCP
+connection setup are limited by the operating system. Set a finite `:timeout`
+when the whole exchange needs a hard deadline. A finite deadline can stop a
+long generation when it expires, so choose a value above the expected request
+duration.
+
 The client uses `cl-http-kit` directly and HTTP message types from `cl-http-message-kit`. If `:http-client` is omitted, `make-client` creates and owns a default client that speaks plain HTTP. TLS support is not a default dependency. To enable it, load `cl-http-kit/tls`, create an HTTP client, and pass it to `make-client`. `close-client` clears connections on an owned client. When the caller supplies `:http-client`, the caller retains its lifetime and connection management.
 
 HTTPS requires a caller-supplied TLS-enabled `http-kit/client:http-client`. Without it, a `https` base URL signals `ollama-argument-error`.
@@ -32,16 +53,16 @@ HTTPS requires a caller-supplied TLS-enabled `http-kit/client:http-client`. With
 ```lisp
 (asdf:load-system "cl-http-kit/tls")
 (defparameter *https-http-client*
-  (http-kit/client:make-http-client))
+  (http-kit/client:make-http-client :default-timeout nil))
 (defparameter *ollama*
   (ollama-kit:make-client
    :base-url "https://localhost:11434/api"
    :http-client *https-http-client*))
 ```
 
-The base URL must use HTTP or HTTPS, contain a valid host authority, and have no query or fragment. Plain HTTP is allowed for `localhost`, `127.0.0.1`, and IPv6 loopback `::1` (written as `[::1]` in a URL). Other plain HTTP base URLs require `:allow-insecure-http t`.
+The base URL must use HTTP or HTTPS, contain a valid authority, and have no userinfo, query, or fragment. Base URLs and URLs passed to `web-fetch` reject dot path segments. Plain HTTP is allowed for `localhost`, `127.0.0.1`, and IPv6 loopback `::1` (written as `[::1]` in a URL). Other plain HTTP base URLs require `:allow-insecure-http t`.
 
-The `make-openai-client` and `make-anthropic-client` wrappers validate `:http-client`, `:response-timeout`, and `:idle-timeout` but do not pass them to `make-client`. Use `make-client` with an explicit `:base-url` when those options are needed. The wrappers pass `:base-url`, `:headers`, `:api-key`, `:timeout`, `:max-input-length`, `:max-request-length`, and `:allow-insecure-http` to `make-client`.
+`make-openai-client` and `make-anthropic-client` apply the same client option defaults and validation rules. They forward options supplied by the caller and select their own `/v1` base URL when `:base-url` is omitted.
 
 ### Other client constructors
 
@@ -53,14 +74,14 @@ For `make-openai-client`, `:api-key` sets an Authorization header using the Bear
 - `client-base-url` returns its normalized base URL.
 - `client-http-client` returns the underlying `http-kit/client:http-client`.
 - `client-headers` returns normalized default headers.
-- `client-timeout` returns the default HTTP request timeout. A per-call `:timeout` overrides it.
-- `client-response-timeout` returns the default stream response-header timeout. Its default is 300 seconds.
-- `client-idle-timeout` returns the default stream body idle timeout. Its default is 120 seconds.
+- `client-timeout` returns the default whole-exchange deadline. Its default is `nil`, and a per-call `:timeout` overrides it.
+- `client-response-timeout` returns the default response-header timeout. Its default is 300 seconds.
+- `client-idle-timeout` returns the default response-body idle timeout. Its default is 120 seconds.
 - `client-max-input-length` returns the response input limit.
 - `client-max-request-length` returns the encoded request limit.
 - `client-api-key-p` reports whether the client was configured with an API key.
 - `client-allow-insecure-http` returns the plain HTTP opt-in value.
-- `close-client` clears connections if the client owns its HTTP client. It does not close a caller-supplied HTTP client.
+- `close-client` clears the owned HTTP client's connection pool and returns the same `ollama-kit` client object. It leaves a caller-supplied HTTP client untouched.
 
 ### `perform-request`
 
@@ -96,15 +117,15 @@ Signature: `(json-object &rest pairs)`. It creates a JSON object from alternatin
 
 ### `make-message`
 
-Signature: `(make-message role content &key name tool-calls thinking images)`. It creates a native chat message and omits optional fields whose values are `+json-unspecified+`.
+Signature: `(make-message role content &key name tool-calls thinking images)`. It creates a JSON message object with `role` and `content` fields and omits optional fields whose values are `+json-unspecified+`. Use the object in native chat calls or as an item in an OpenAI-compatible or Anthropic-compatible `messages` array.
 
 ## Synchronous streaming
 
 `call-with-ollama-stream`, `call-with-openai-stream`, and `call-with-anthropic-stream` synchronously consume a response body and invoke an event function once for each decoded JSON event. Native streams use NDJSON. OpenAI-compatible and Anthropic-compatible streams use SSE parsed by `cl-sse-kit`. Each function has the signature `(client method path event-function &rest options)`.
 
-The callback receives one decoded JSON object and runs as each complete event is parsed, in wire order. Return `:stop` to cancel the active request and finish normally; the function returns `nil` on this path and returns the HTTP response at EOF. A callback error or other non-local exit propagates to the caller. On a non-local exit, `cl-ollama-kit` stops and joins its timeout monitor, but does not explicitly cancel the request on that path.
+The callback receives one decoded JSON object and runs as each complete event is parsed, in wire order. Return `:stop` to cancel the active request and finish normally; the function returns `nil` on this path and returns the HTTP response at EOF. A callback error or other non-local exit propagates to the caller. If a callback exits non-locally, `cl-ollama-kit` cancels the request, stops and joins its timeout monitor, and releases the connection.
 
-Stream functions accept `:body`, `:timeout`, `:headers`, `:response-timeout`, `:idle-timeout`, and `:cancel-token`. `http-kit/client:make-http-cancellation-token` creates a token to pass as `:cancel-token`; if omitted, the library creates one. To request cancellation from another thread, call `http-kit/client:http-client-cancel-request` with the same token. Cancellation signals `ollama-cancelled`. The response-timeout measures time to response headers. The idle-timeout measures the time between body chunks. Both default to the client settings.
+Stream functions accept `:body`, `:timeout`, `:headers`, `:response-timeout`, `:idle-timeout`, and `:cancel-token`. `http-kit/client:make-http-cancellation-token` creates a token to pass as `:cancel-token`; if omitted, the library creates one. To request cancellation from another thread, call `http-kit/client:http-client-cancel-request` with the same token. Cancellation signals `ollama-cancelled` and releases the connection. The response-timeout measures time to response headers. The idle-timeout measures the time between body chunks. Both default to the client settings.
 
 An SSE event must end with a blank line before EOF to be delivered. An event left unterminated at EOF is discarded. The native NDJSON parser delivers a final non-empty line at EOF. An SSE `[DONE]` event ends processing and is not passed to the callback.
 
@@ -129,6 +150,7 @@ All conditions below are exported from `ollama-kit`. See the [conditions referen
 
 - `generate` and `generate-stream` call `POST /api/generate`.
 - `chat` and `chat-stream` call `POST /api/chat`.
+- `generate` and `chat` accept `:think`. When supplied as `t` or `nil`, it is encoded as a JSON boolean. Other symbols and strings are encoded as enum strings. Omit `:think` to omit the JSON field.
 - `embed` calls the JSON-only `POST /api/embed` endpoint. Its input is a string or sequence of strings. `:dimensions` must be an integer and `:keep-alive` must be a duration string when supplied.
 - `list-models`, `list-running-models`, and `show-model` query local models.
 - `create-model` and `create-model-stream` create a model.
@@ -141,7 +163,7 @@ All conditions below are exported from `ollama-kit`. See the [conditions referen
 
 `make-openai-client` creates a client for the OpenAI-compatible `/v1` API.
 
-- `openai-model` and `openai-models` query models.
+- `openai-model` and `openai-models` query models. `openai-model` percent-encodes the model name as one path segment; model names containing a path separator or URL delimiter are rejected.
 - `openai-chat-completions` and `openai-chat-completions-stream` call `/v1/chat/completions`.
 - `openai-completions` and `openai-completions-stream` call `/v1/completions`.
 - `openai-embeddings` calls `/v1/embeddings`.

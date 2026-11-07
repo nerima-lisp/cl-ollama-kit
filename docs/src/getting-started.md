@@ -36,10 +36,20 @@ Its default base URL is `http://localhost:11434/api`.
 ```
 
 Pass `:http-client` to use a caller-created `http-kit/client:http-client`.
-Client options also include `:headers`, `:api-key`, `:timeout`,
-`:response-timeout`, `:idle-timeout`, `:max-input-length`,
-`:max-request-length`, and `:allow-insecure-http`. The defaults for response
-and idle timeouts apply to streams. Stream endpoints accept per-call
+The [API reference](reference/api.md#make-client) lists every client option,
+its default, and its validation rule.
+
+`:timeout` defaults to `nil`, so it sets no deadline for the whole HTTP
+exchange. The default `:response-timeout` is 300 seconds and measures time to
+response headers. The default `:idle-timeout` is 120 seconds and measures the
+gap between response body chunks. These guards apply to streaming and
+non-streaming requests. `cl-http-kit` has no connect-only timeout, so DNS
+lookup and TCP connection setup are limited by the operating system.
+
+Pass a finite `:timeout` to set one deadline for the entire exchange. For
+example, `:timeout 3600` sets a one-hour limit. Choose a limit longer than the
+generation you expect. A finite default could cancel a valid long generation
+when the deadline expires. Streaming calls also accept per-call
 `:response-timeout` and `:idle-timeout` overrides.
 
 The client sends an API key as a Bearer authorization value. Do not combine
@@ -109,6 +119,9 @@ anchors to `http-kit/client:make-http-client`.
 `cl-http-kit/tls` and its dependencies must be available through ASDF.
 
 Base URLs must use HTTP or HTTPS and cannot contain a query or fragment.
+They must have a valid authority and cannot contain userinfo. URLs passed to
+`ollama-kit:web-fetch` must also use HTTP or HTTPS, have a valid authority, and
+contain no userinfo.
 Plain HTTP is allowed without `:allow-insecure-http` only for `localhost`,
 `127.0.0.1`, and IPv6 loopback `::1` (written as `[::1]` in a URL). Set
 `:allow-insecure-http t` to use plain HTTP with any other host, including a

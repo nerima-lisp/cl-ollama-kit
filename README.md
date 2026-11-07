@@ -27,7 +27,13 @@ installed model before running the request.
 ```
 
 The default client speaks plain HTTP and uses `http://localhost:11434/api`.
-See [Getting started](docs/src/getting-started.md) for transport configuration,
+The default `:response-timeout` is 300 seconds to receive response headers.
+The default `:idle-timeout` is 120 seconds between response body chunks.
+`:timeout` defaults to `nil`; set it to a finite value to bound the whole
+exchange. DNS lookup and TCP connection setup are limited by the operating
+system. Choose a finite deadline longer than the generation you expect,
+because the client cancels a request when it expires.
+See [Getting started](docs/src/getting-started.md) for timeout and URL rules,
 HTTPS, and streaming.
 
 ## Version 3.0
@@ -38,8 +44,9 @@ no backward-compatibility layer. See [Migrating from 2.x](docs/src/project/migra
 
 ## Install
 
-Make the checkout and its ASDF dependencies available to the Common Lisp
-implementation. `nix develop` provides the pinned development environment.
+With Nix flake support enabled, run `nix develop` to enter the pinned
+development environment. Outside that environment, make the checkout and its
+ASDF dependencies discoverable through ASDF before loading `cl-ollama-kit`.
 
 ## Documentation
 
@@ -65,8 +72,6 @@ nix flake check
 The test suite does not require a running model service. Coverage writes an
 HTML report to a temporary directory unless
 `CL_OLLAMA_KIT_COVERAGE_DIRECTORY` is set.
-
-## Contributing
 
 ## Support
 

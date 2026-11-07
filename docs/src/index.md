@@ -20,6 +20,3 @@
 - [Development](project/development.md) describes the source layout and local checks.
 - [Migrating from 2.x](project/migrating-from-2.x.md) lists the removed and renamed exports.
 
-## HTTP and TLS
-
-The default HTTP client speaks plain HTTP. For HTTPS, create an `http-kit/client:http-client` with TLS support and pass it to `make-client` using `:http-client`. Non-loopback plain HTTP requires `:allow-insecure-http t`. See the [API reference](reference/api.md#client-and-transport) for the URL rules and the HTTPS call shape.
