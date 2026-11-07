@@ -227,7 +227,6 @@
             src = cl-http-message-kit.outPath;
             lispDependencies = [ clHpackCodecKit ];
           };
-          clHttpTlsKit = wrapForeign cl-tls-kit.packages.${ctx.system}.default;
           clHttpDeflateKit = forge.lispDerivation {
             pname = "cl-deflate-kit";
             version = "0.4.0";
@@ -240,25 +239,16 @@
             lispSystem = "cl-hpack-codec-kit";
             src = cl-hpack-codec-kit.outPath;
           };
-          clCryptoKit = wrapForeign (forge.lispDerivation {
-            pname = "cl-crypto-kit";
-            version = "0.1.0";
-            lispSystem = "cl-crypto-kit";
-            src = cl-crypto-kit.outPath;
-            lispDependencies = externalLispDependencies;
-          });
           clHttpKit = wrapForeign (forge.lispDerivation {
             pname = "cl-http-kit";
             version = "0.5.0";
-            lispSystems = [ "cl-http-kit/client" "cl-http-kit/tls" ];
+            lispSystem = "cl-http-kit/client";
             src = cl-http-kit.outPath;
             lispDependencies = [
               clHttpMessageKit
               clHpackCodecKit
               cl-codec-kit.packages.${ctx.system}.cl-codec-kit
               clHttpDeflateKit
-              clHttpTlsKit
-              clCryptoKit
             ] ++ externalLispDependencies;
           });
           clSseKit = wrapForeign (forge.lispDerivation {
@@ -282,7 +272,6 @@
         [
           clHttpKit
           clHttpMessageKit
-          clHttpTlsKit
           clSseKit
           cl-codec-kit.packages.${ctx.system}.cl-codec-kit
           cl-concurrent-kit.packages.${ctx.system}.cl-concurrent-kit

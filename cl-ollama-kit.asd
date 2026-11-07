@@ -7,9 +7,7 @@
   :version "3.0.0"
   :license "MIT"
   :depends-on ((:version "cl-http-kit/client" "0.5.0")
-               (:version "cl-http-kit/tls" "0.5.0")
                (:version "cl-http-message-kit" "2.0.1")
-               (:version "cl-tls-kit" "0.5.2")
                (:version "cl-sse-kit" "1.1.0")
                (:version "cl-codec-kit" "0.6.0")
                (:version "cl-concurrent-kit" "0.6.1")
