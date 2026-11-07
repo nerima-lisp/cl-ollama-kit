@@ -28,73 +28,65 @@
           (it
            "validates continuation functions and propagates continuation errors"
            (let* ((client
-                    (client-with-request-function
-                     (lambda (request &key timeout)
-                       (declare (ignore request timeout))
-                       (response-with-text "{}"))))
+                   (client-with-request-function
+                    (lambda (request &key timeout)
+                      (declare (ignore request timeout))
+                      (response-with-text "{}"))))
                   (error-client
-                    (client-with-request-function
-                     (lambda (request &key timeout)
-                       (declare (ignore request timeout))
-                       (response-with-text "{\"error\":\"no\"}"
-                                           :status
-                                           400))))
+                   (client-with-request-function
+                    (lambda (request &key timeout)
+                      (declare (ignore request timeout))
+                      (response-with-text "{\"error\":\"no\"}" :status 400))))
                   (rejected nil))
-             (handler-case
-                 (progn
-                   (call-with-json client
-                                   :get
-                                   "/version"
-                                   nil
-                                   #'identity)
-                   (assert nil))
+             (handler-case (progn
+                             (call-with-json client
+                                             :get
+                                             "/version"
+                                             nil
+                                             #'identity)
+                             (assert nil))
                (ollama-argument-error ()
                  (setf rejected t)))
              (assert rejected)
              (setf rejected nil)
-             (handler-case
-                 (progn
-                   (call-with-json client
-                                   :get
-                                   "/version"
-                                   #'identity
-                                   nil)
-                   (assert nil))
+             (handler-case (progn
+                             (call-with-json client
+                                             :get
+                                             "/version"
+                                             #'identity
+                                             nil)
+                             (assert nil))
                (ollama-argument-error ()
                  (setf rejected t)))
              (assert rejected)
              (let ((response nil))
-               (handler-case
-                   (progn
-                     (call-with-json
-                      client
-                      :get
-                      "/version"
-                      (lambda (value returned-response)
-                        (declare (ignore value))
-                        (setf response returned-response)
-                        (error "success continuation"))
-                      (lambda (condition)
-                        (declare (ignore condition))
-                        (error "failure continuation")))
-                     (assert nil))
+               (handler-case (progn
+                               (call-with-json client
+                                               :get
+                                               "/version"
+                                               (lambda (value returned-response)
+                                                 (declare (ignore value))
+                                                 (setf response returned-response)
+                                                 (error "success continuation"))
+                                               (lambda (condition)
+                                                 (declare (ignore condition))
+                                                 (error "failure continuation")))
+                               (assert nil))
                  (simple-error (condition)
                    (assert
                     (equal "success continuation"
                            (simple-condition-format-control condition)))))
                (assert (http-message-kit:http-response-p response)))
-             (handler-case
-                 (progn
-                   (call-with-json
-                    error-client
-                    :get
-                    "/version"
-                    (lambda (&rest values)
-                      (declare (ignore values)))
-                    (lambda (condition)
-                      (declare (ignore condition))
-                      (error "failure continuation")))
-                   (assert nil))
+             (handler-case (progn
+                             (call-with-json error-client
+                                             :get
+                                             "/version"
+                                             (lambda (&rest values)
+                                               (declare (ignore values)))
+                                             (lambda (condition)
+                                               (declare (ignore condition))
+                                               (error "failure continuation")))
+                             (assert nil))
                (simple-error (condition)
                  (assert
                   (equal "failure continuation"
@@ -151,16 +143,26 @@
                               (progn
                                 (assert
                                  (equal
-                                  '(client body event-function
-                                           &key timeout headers
-                                           (response-timeout ollama-kit::+timeout-unspecified+)
-                                           (idle-timeout ollama-kit::+timeout-unspecified+)
+                                  '(client body
+                                           event-function
+                                           &key
+                                           timeout
+                                           headers
+                                           (response-timeout
+                                            ollama-kit::+timeout-unspecified+)
+                                           (idle-timeout
+                                            ollama-kit::+timeout-unspecified+)
                                            cancel-token)
                                   (ollama-kit::%validate-stream-endpoint-lambda-list
-                                   '(client body event-function
-                                            &key timeout headers
-                                            (response-timeout ollama-kit::+timeout-unspecified+)
-                                            (idle-timeout ollama-kit::+timeout-unspecified+)
+                                   '(client body
+                                            event-function
+                                            &key
+                                            timeout
+                                            headers
+                                            (response-timeout
+                                             ollama-kit::+timeout-unspecified+)
+                                            (idle-timeout
+                                             ollama-kit::+timeout-unspecified+)
                                             cancel-token))))
                                 (ollama-kit::%validate-stream-endpoint-lambda-list
                                  '(client &key timeout headers)))
@@ -254,21 +256,27 @@
               (assert
                (let ((expansion
                       (macroexpand-1
-                       '(ollama-kit::define-native-stream-pair generated-endpoint
-                                                               generated-stream
-                                                               (client &key timeout headers)
-                                                               :post
-                                                               "/generate"
-                                                               (lambda (stream-p)
-                                                                 (if stream-p
-                                                                     :stream
-                                                                   :json))))))
+                       '(ollama-kit::define-native-stream-pair
+                         generated-endpoint
+                         generated-stream
+                         (client &key timeout headers)
+                         :post
+                         "/generate"
+                         (lambda (stream-p)
+                           (if stream-p
+                               :stream
+                               :json))))))
                  (and (not (coverage-tree-contains-symbol-p expansion 'funcall))
-                      (coverage-tree-contains-symbol-p expansion 'call-with-ollama-stream)
-                      (coverage-tree-contains-symbol-p expansion 'ollama-kit::event-function)
-                      (coverage-tree-contains-symbol-p expansion 'ollama-kit::response-timeout)
-                      (coverage-tree-contains-symbol-p expansion 'ollama-kit::idle-timeout)
-                      (coverage-tree-contains-symbol-p expansion 'ollama-kit::cancel-token))))
+                      (coverage-tree-contains-symbol-p expansion
+                                                       'call-with-ollama-stream)
+                      (coverage-tree-contains-symbol-p expansion
+                                                       'ollama-kit::event-function)
+                      (coverage-tree-contains-symbol-p expansion
+                                                       'ollama-kit::response-timeout)
+                      (coverage-tree-contains-symbol-p expansion
+                                                       'ollama-kit::idle-timeout)
+                      (coverage-tree-contains-symbol-p expansion
+                                                       'ollama-kit::cancel-token))))
               (assert
                (not
                 (coverage-tree-contains-symbol-p
@@ -310,8 +318,14 @@
                                 (apply #'ollama-kit::%expand-stream-endpoint
                                        (append arguments
                                                '(generated-stream-endpoint
-                                                 (client body event-function
-        &key timeout headers response-timeout idle-timeout cancel-token)
+                                                 (client body
+                                                         event-function
+                                                         &key
+                                                         timeout
+                                                         headers
+                                                         response-timeout
+                                                         idle-timeout
+                                                         cancel-token)
                                                  :post
                                                  "/stream"
                                                  nil)))
@@ -391,4 +405,19 @@
                 (assert (equal "t" (ollama-kit::%native-think t)))
                 (assert
                  (eq json-kit:+json-false+
-                     (ollama-kit::%native-think json-kit:+json-false+))))))
+                     (ollama-kit::%native-think json-kit:+json-false+)))))
+          (it
+           "rejects native stream pairs without a keyword lambda-list section"
+           (handler-case (progn
+                           (macroexpand-1
+                            '(ollama-kit::define-native-stream-pair endpoint
+                                                                    endpoint-stream
+                                                                    (client)
+                                                                    :post
+                                                                    "/generate"
+                                                                    (lambda
+                                                                        (stream-p)
+                                                                      stream-p)))
+                           (assert nil))
+             (program-error ()
+               t))))
