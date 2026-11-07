@@ -71,7 +71,7 @@
          :reader
          ollama-stream-error-line
          :documentation
-         "The one-based wire line at which the event was decoded."))
+         "The one-based wire line number, or NIL for SSE error events."))
   (:documentation "Signals an error event received in a streaming response."))
 
 (define-condition ollama-http-error
