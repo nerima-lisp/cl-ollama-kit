@@ -30,12 +30,6 @@
                              :documentation
                              "List models through `/v1/models`.")
 
-(defun %openai-model-has-control-p (model)
-  (some
-   (lambda (character)
-     (or (< (char-code character) 33) (= (char-code character) 127)))
-   model))
-
 (defun %openai-model-has-path-separator-p (model)
   (or (find #\/ model)
       (find #\\ model)
@@ -47,7 +41,7 @@
     (error 'ollama-argument-error
            :message
            "OpenAI model names must be non-empty strings."))
-  (when (%openai-model-has-control-p model)
+  (when (%url-contains-control-p model)
     (error 'ollama-argument-error
            :message
            "OpenAI model names must not contain controls or whitespace."))

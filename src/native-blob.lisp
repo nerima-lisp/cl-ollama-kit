@@ -1,15 +1,11 @@
 #.(progn (in-package :ollama-kit) nil)
 
 (defun %unsafe-blob-digest-p (digest)
-  (or
-   (some
-    (lambda (character)
-      (or (< (char-code character) 33) (= (char-code character) 127)))
-    digest)
-   (find-if
-    (lambda (character)
-      (find character "/\\?#"))
-    digest)))
+  (or (%url-contains-control-p digest)
+      (find-if
+       (lambda (character)
+         (find character "/\\?#"))
+       digest)))
 
 (defun %validate-blob-digest (digest)
   (unless (and (stringp digest) (plusp (length digest)))
