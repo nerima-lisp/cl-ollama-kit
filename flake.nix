@@ -211,7 +211,11 @@
         ctx:
         let
           forge = cl-nix-forge.lib.${ctx.system};
-          wrapForeign = drv: forge.fromDerivation { inherit drv; recursive = true; };
+          wrapForeign = drv: forge.fromDerivation {
+            inherit drv;
+            recursive = true;
+            lispDependencies = drv.ancestry.deps or [ ];
+          };
           fromNixpkgsLisp = drv: forge.fromNixpkgsLisp { inherit drv; lispImplementation = "sbcl"; };
           externalLispDependencies = map fromNixpkgsLisp [
             ctx.pkgs.sbclPackages.alexandria
@@ -251,7 +255,7 @@
               clHttpDeflateKit
             ] ++ externalLispDependencies;
           };
-          clSseKit = forge.lispDerivation {
+          clSseKit = wrapForeign (forge.lispDerivation {
             pname = "cl-sse-kit";
             version = "1.1.0";
             lispSystem = "cl-sse-kit";
@@ -267,7 +271,7 @@
               cl-date-kit.packages.${ctx.system}.cl-date-kit
               cl-host-kit.packages.${ctx.system}.cl-host-kit
             ] ++ externalLispDependencies;
-          };
+          });
         in
         [
           clHttpKit
