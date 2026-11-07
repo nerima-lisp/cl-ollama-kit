@@ -32,7 +32,7 @@ The following request and response model names are no longer exported from `olla
 - `response-success-p`
 - `close-http-response`
 
-HTTP request and response messages now use `cl-http-message-kit` types. The old `http-request-url` reader is replaced by `http-message-kit:http-request-uri`. `src/package.lisp` imports `make-http-request`, `http-request-p`, `make-http-response`, `http-response-p`, and the `http-response-status`, `http-response-headers`, and `http-response-body` readers from `http-message-kit`. These names are not re-exported by `ollama-kit`. The old stream and close-function fields are not part of the public `ollama-kit` API. Other low-level request and response helpers have no one-to-one replacement in the `ollama-kit` package; use the `http-message-kit` package's exported interface when a low-level message is needed.
+HTTP request and response messages use `http-message-kit` types, which `ollama-kit` does not re-export. Replace the old `http-request-url` reader with `http-message-kit:http-request-uri`. The old stream and close-function fields are not part of the public `ollama-kit` API. Use `http-message-kit`'s exported interface when an application needs low-level request or response messages.
 
 ## Response scope macros
 
