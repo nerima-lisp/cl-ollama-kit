@@ -158,7 +158,7 @@
        %openai-assert-chat-body
        %openai-chat-event-content
        "Hello"
-       (("Accept" . "application/x-ndjson"))))
+       (("Accept" . "text/event-stream"))))
      "sends the ~A request body and delivers its callback event"
      (operation path request-body sse-payload request-checker event-reader expected-text request-headers)
      (%call-with-openai-loopback-response
@@ -180,7 +180,7 @@
               (assert (eq t (gethash "stream" sent))))
             (when request-headers
               (assert
-               (equal "application/x-ndjson"
+               (equal "text/event-stream"
                       (%openai-request-header-content request "Accept"))))
             (assert (= 1 (length events)))
             (assert (equal expected-text (funcall event-reader event))))))))
