@@ -341,3 +341,8 @@
                                   (ollama-kit::client-headers client)
                                   :test
                                   #'string=))))))))
+
+(it "native think keeps JSON booleans"
+    (assert (typep (ollama-kit::%native-think t) (quote (eql t))))
+    (assert (eq json-kit:+json-false+ (ollama-kit::%native-think nil)))
+    (assert (equal "low" (ollama-kit::%native-think :low))))
