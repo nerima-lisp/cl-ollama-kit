@@ -64,7 +64,9 @@
       (lambda (client server)
         (let* ((value (funcall operation client))
                (request (%assert-native-loopback-request server method path)))
-          (assert (null (http-message-kit:http-request-body request)))
+          (let ((body (http-message-kit:http-request-body request)))
+            (assert (typep body '(vector (unsigned-byte 8))))
+            (assert (zerop (array-total-size body))))
           (assert (equal expected-value (funcall response-reader value)))))))
 
     (it "preserves explicit false, zero, and enum-valued generation options"
