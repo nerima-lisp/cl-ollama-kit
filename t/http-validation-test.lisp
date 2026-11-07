@@ -260,7 +260,28 @@
                                (lambda ()
                                  (ollama-kit::%validate-request-path path)))))
                 (let ((default-client (make-client)))
-                  (unwind-protect (assert (ollama-kit:client-p default-client))
+                  (unwind-protect
+                      (progn
+                        (assert (ollama-kit:client-p default-client))
+                        (assert
+                         (null (ollama-kit:client-timeout default-client)))
+                        (assert
+                         (= 300
+                            (ollama-kit:client-response-timeout default-client)))
+                        (assert
+                         (= 120 (ollama-kit:client-idle-timeout default-client)))
+                        (assert
+                         (= 16777216
+                            (ollama-kit:client-max-input-length default-client)))
+                        (assert
+                         (= 16777216
+                            (ollama-kit:client-max-request-length
+                             default-client)))
+                        (assert
+                         (null
+                          (ollama-kit:client-allow-insecure-http default-client)))
+                        (assert
+                         (not (ollama-kit:client-api-key-p default-client))))
                     (close-client default-client)))
                 (let ((default-client (make-client :http-client http-client)))
                   (assert
