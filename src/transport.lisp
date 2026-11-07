@@ -237,27 +237,14 @@ header with the same name. NIL suppresses the default header."
 
 (defun send-http-request (client request
                                  &key
-                                 (timeout +timeout-unspecified+)
+                                 timeout
                                  cancel-token
-                                 (collect-body-p t)
+                                 (collect-body-p nil)
                                  on-response-headers
                                  on-body-chunk
                                  (response-timeout +timeout-unspecified+)
                                  (idle-timeout +timeout-unspecified+))
-  (unless (client-p client)
-    (error 'ollama-argument-error :message "CLIENT must be an Ollama client."))
-  (%validate-boolean collect-body-p "COLLECT-BODY-P")
-  (when (and on-response-headers (not (functionp on-response-headers)))
-    (error 'ollama-argument-error
-           :message
-           "ON-RESPONSE-HEADERS must be a function."))
-  (when (and on-body-chunk (not (functionp on-body-chunk)))
-    (error 'ollama-argument-error :message "ON-BODY-CHUNK must be a function."))
-  (let* ((timeout
-          (if (eq timeout +timeout-unspecified+)
-              (client-timeout client)
-              timeout))
-         (response-timeout
+  (let* ((response-timeout
           (if (eq response-timeout +timeout-unspecified+)
               (client-response-timeout client)
               response-timeout))
@@ -290,7 +277,6 @@ header with the same name. NIL suppresses the default header."
          (send-condition nil)
          (response nil)
          (send-returned-p nil))
-    (%validate-timeout timeout)
     (labels ((deadline-after (seconds)
                (+ (get-internal-real-time)
                   (ceiling (* seconds internal-time-units-per-second))))
