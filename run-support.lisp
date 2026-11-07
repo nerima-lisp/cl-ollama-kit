@@ -38,7 +38,20 @@
   (unless (uiop:getenv "CL_SOURCE_REGISTRY")
     (let ((systems
            (append
-            '("cl-boundary-kit" "cl-codec-kit" "cl-concurrent-kit" "cl-json-kit")
+            '("cl-boundary-kit"
+             "cl-codec-kit"
+             "cl-concurrent-kit"
+             "cl-crypto-kit"
+             "cl-date-kit"
+             "cl-deflate-kit"
+             "cl-host-kit"
+             "cl-hpack-codec-kit"
+             "cl-http-kit"
+             "cl-http-message-kit"
+             "cl-json-kit"
+             "cl-resilience-kit"
+             "cl-sse-kit"
+             "cl-tls-kit")
             (when include-test-dependencies
               '("cl-weave" "cl-sse-kit")))))
       (asdf:initialize-source-registry
