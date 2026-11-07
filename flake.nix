@@ -223,7 +223,12 @@
           clHttpMessageKit = wrapForeign cl-http-message-kit.packages.${ctx.system}.default;
           clHttpTlsKit = wrapForeign cl-tls-kit.packages.${ctx.system}.default;
           clHttpDeflateKit = wrapForeign cl-deflate-kit.packages.${ctx.system}.default;
-          clHpackCodecKit = wrapForeign cl-hpack-codec-kit.packages.${ctx.system}.default;
+          clHpackCodecKit = forge.lispDerivation {
+            pname = "cl-hpack-codec-kit";
+            version = "1.1.1";
+            lispSystem = "cl-hpack-codec-kit";
+            src = cl-hpack-codec-kit.outPath;
+          };
           clCryptoKit = wrapForeign (forge.lispDerivation {
             pname = "cl-crypto-kit";
             version = "0.1.0";
