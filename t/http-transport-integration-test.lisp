@@ -62,6 +62,20 @@
                       (assert (equal "fixture" (gethash "version" value))))
                   (close-client client)
                   (%assert-loopback-server-cleaned server))))
+          (it "sends custom method tokens on the wire"
+              (let* ((server (make-loopback-http-server))
+                     (client (%http-test-client server)))
+                (unwind-protect
+                    (progn
+                      (perform-request client "frob" "/custom-method")
+                      (assert
+                       (search "FROB /custom-method "
+                               (cl-codec-kit:octets-to-string
+                                (loopback-http-server-request-bytes server)
+                                :encoding
+                                :utf-8))))
+                  (close-client client)
+                  (%assert-loopback-server-cleaned server))))
           (it "round trips HTTP message kit request and response values"
               (let* ((server
                       (make-loopback-http-server :status
