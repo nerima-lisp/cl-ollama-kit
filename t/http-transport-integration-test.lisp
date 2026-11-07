@@ -385,9 +385,9 @@
                                                                                              (cl-concurrent-kit:wait-on-semaphore release-callback))
                                                                                            :cancel-token
                                                                                            cancel-token
-                                                                                           ;; The 30-second deadline gives callback cancellation ample scheduling margin.
+                                                                                           ;; The callback cancels before signalling, so three seconds leaves ample scheduling margin.
                                                                                            :idle-timeout
-                                                                                           30))))
+                                                                                           3))))
                                                    (error (condition)
                                                      (setf request-condition condition)))
                                                (cl-concurrent-kit:signal-semaphore
