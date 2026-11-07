@@ -354,6 +354,135 @@
                (close-client client)
                (%assert-loopback-server-cleaned server))))
           (it
+           "preserves caller cancellation when the idle deadline expires later"
+           (:execution-mode :sequential)
+           (let* ((chunk
+                   (cl-codec-kit:string-to-octets
+                    (format nil "{\"response\":\"first\",\"done\":false}~%")
+                    :encoding
+                    :utf-8))
+                  (server
+                   (make-loopback-http-server :behavior
+                                              :stalled-body
+                                              :chunks
+                                              (list chunk)))
+                  (client (%http-test-client server))
+                  (cancel-token (http-kit/client:make-http-cancellation-token))
+                  (callback-entered (cl-concurrent-kit:make-semaphore :count 0))
+                  (release-callback (cl-concurrent-kit:make-semaphore :count 0))
+                  (request-finished (cl-concurrent-kit:make-semaphore :count 0)))
+             (let ((request-condition nil)
+                   (request-thread nil)
+                   (monitor-thread nil))
+               (unwind-protect
+                   (progn
+                     (setf request-thread (cl-concurrent-kit:make-thread
+                                           (lambda ()
+                                             (unwind-protect
+                                                 (handler-case (setf request-condition (%capture-http-test-error
+                                                                                        (lambda
+                                                                                            ()
+                                                                                          (generate-stream
+                                                                                           client
+                                                                                           "tiny"
+                                                                                           "prompt"
+                                                                                           (lambda
+                                                                                               (event)
+                                                                                             (declare (ignore
+                                                                                                       event))
+                                                                                             (cl-concurrent-kit:signal-semaphore
+                                                                                              callback-entered)
+                                                                                             (cl-concurrent-kit:wait-on-semaphore
+                                                                                              release-callback))
+                                                                                           :cancel-token
+                                                                                           cancel-token
+                                                                                           :idle-timeout
+                                                                                           1))))
+                                                   (error (condition)
+                                                     (setf request-condition condition)))
+                                               (cl-concurrent-kit:signal-semaphore
+                                                request-finished)))
+                                           :name
+                                           "cl-ollama-kit test idle cancellation request"))
+                     (assert
+                      (cl-concurrent-kit:wait-on-semaphore callback-entered
+                                                           :timeout
+                                                           5))
+                     (assert
+                      (http-message-kit:http-request-p
+                       (loopback-http-server-request server)))
+                     (let ((monitor-threads
+                            (remove-if-not
+                             (lambda (thread)
+                               (and (cl-concurrent-kit:thread-alive-p thread)
+                                    (string=
+                                     "cl-ollama-kit HTTP timeout monitor"
+                                     (cl-concurrent-kit:thread-name thread))))
+                             #+sbcl (sb-thread:list-all-threads))))
+                       (assert (= 1 (length monitor-threads)))
+                       (setf monitor-thread (first monitor-threads))
+                       (assert
+                        (cl-concurrent-kit:thread-alive-p monitor-thread))
+                       (assert
+                        (http-kit/client:http-client-cancel-request
+                         cancel-token))
+                       (assert
+                        (not
+                         (eq :timed-out
+                             (cl-concurrent-kit:join-thread monitor-thread
+                                                            :timeout
+                                                            5
+                                                            :default
+                                                            :timed-out))))
+                       (assert
+                        (not (cl-concurrent-kit:thread-alive-p monitor-thread))))
+                     (cl-concurrent-kit:signal-semaphore release-callback)
+                     (assert
+                      (cl-concurrent-kit:wait-on-semaphore request-finished
+                                                           :timeout
+                                                           5))
+                     (assert (%join-http-test-thread request-thread 5))
+                     (assert (typep request-condition 'ollama-cancelled))
+                     (assert
+                      (not (typep request-condition 'ollama-response-timeout)))
+                     (assert
+                      (not (typep request-condition 'ollama-idle-timeout)))
+                     (assert
+                      (string= "The HTTP request was cancelled by the caller."
+                               (ollama-error-message request-condition)))
+                     (assert
+                      (typep (ollama-transport-error-cause request-condition)
+                             'http-kit/client:http-client-request-cancelled))
+                     (assert (loopback-http-server-await-eof server 5)))
+                 (unwind-protect
+                     (progn
+                       (cl-concurrent-kit:signal-semaphore release-callback)
+                       (http-kit/client:http-client-cancel-request cancel-token)
+                       (close-client client))
+                   (unwind-protect
+                       (when request-thread
+                         (assert (%join-http-test-thread request-thread 5)))
+                     (unwind-protect
+                         (when monitor-thread
+                           (assert (%join-http-test-thread monitor-thread 5))
+                           (assert
+                            (not
+                             (cl-concurrent-kit:thread-alive-p monitor-thread))))
+                       (unwind-protect
+                           #+sbcl
+          (dolist
+              (thread
+               (remove-if-not
+                (lambda (thread)
+                  (and (cl-concurrent-kit:thread-alive-p thread)
+                       (string=
+                        "cl-ollama-kit HTTP timeout monitor"
+                        (cl-concurrent-kit:thread-name thread))))
+                (sb-thread:list-all-threads)))
+            (assert (%join-http-test-thread thread 5))
+            (assert (not (cl-concurrent-kit:thread-alive-p thread))))
+                         (%assert-loopback-server-cleaned server)))))))))
+          (it
            "propagates a body callback condition unchanged and releases the connection"
            (let* ((chunk
                    (cl-codec-kit:string-to-octets

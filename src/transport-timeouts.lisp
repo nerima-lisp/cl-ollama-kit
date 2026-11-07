@@ -2,11 +2,7 @@
                                                      idle-timeout
                                                      on-response-headers
                                                      on-body-chunk
-                                                     send-thunk
-                                                     &key
-                                                     (cancel-request-function
-                                                      (function
-                                                       http-kit/client:http-client-cancel-request)))
+                                                     send-thunk)
   (let* ((monitor-p (or response-timeout idle-timeout))
          (monitor-lock
           (when monitor-p
@@ -66,7 +62,9 @@
                        (when stopped-p
                          (return))
                        (when expired-kind
-                         (when (funcall cancel-request-function cancel-token)
+                         (when
+                             (http-kit/client:http-client-cancel-request
+                              cancel-token)
                            (cl-concurrent-kit:with-lock-held (monitor-lock)
                                                              (setf monitor-timeout-kind expired-kind)))
                          (return)))))
