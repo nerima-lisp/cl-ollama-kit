@@ -7,8 +7,7 @@ Ollama service. This guide uses exported, package-qualified symbols.
 
 Load `cl-ollama-kit` through ASDF. Its runtime dependencies include
 `cl-http-kit/client`, `cl-http-message-kit`, `cl-sse-kit`, `cl-codec-kit`,
-`cl-concurrent-kit`, and `cl-json-kit`. TLS support is optional and is not a
-runtime dependency of `cl-ollama-kit`.
+`cl-concurrent-kit`, and `cl-json-kit`.
 
 ```lisp
 (asdf:load-system "cl-ollama-kit")
@@ -99,29 +98,15 @@ reference](reference/conditions.md) for stream and timeout errors.
 
 The default client speaks plain HTTP only. `make-client` signals
 `ollama-kit:ollama-argument-error` for an HTTPS base URL without `:http-client`.
-Load the optional `cl-http-kit/tls` system, create an HTTP client with TLS
-support, and pass it to `make-client`:
-
-```lisp
-(asdf:load-system "cl-http-kit/tls")
-(defparameter *https-http-client*
-  (http-kit/client:make-http-client :default-timeout nil))
-
-(defparameter *secure-ollama*
-  (ollama-kit:make-client
-   :base-url "https://localhost:11434/api"
-   :http-client *https-http-client*))
-```
-
-The example uses the TLS system's default trust store. For a private CA, pass a
-`:tls-upgrade` created by `http-kit/tls:make-http-tls-upgrader` with trust
-anchors to `http-kit/client:make-http-client`.
-`cl-http-kit/tls` and its dependencies must be available through ASDF.
+HTTPS requires a caller-supplied TLS-capable `:http-client`. With the dependency
+versions pinned by this release, loading `cl-http-kit/tls` fails with
+`CRYPTO-PROVIDER-UNAVAILABLE`, so this release has no tested HTTPS
+configuration.
 
 Base URLs must use HTTP or HTTPS and cannot contain a query or fragment.
 They must have a valid authority and cannot contain userinfo. URLs passed to
 `ollama-kit:web-fetch` must also use HTTP or HTTPS, have a valid authority, and
-contain no userinfo.
+contain no userinfo or dot path segments.
 Plain HTTP is allowed without `:allow-insecure-http` only for `localhost`,
 `127.0.0.1`, and IPv6 loopback `::1` (written as `[::1]` in a URL). Set
 `:allow-insecure-http t` to use plain HTTP with any other host, including a

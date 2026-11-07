@@ -46,19 +46,9 @@ when the whole exchange needs a hard deadline. A finite deadline can stop a
 long generation when it expires, so choose a value above the expected request
 duration.
 
-The client uses `cl-http-kit` directly and HTTP message types from `cl-http-message-kit`. If `:http-client` is omitted, `make-client` creates and owns a default client that speaks plain HTTP. TLS support is not a default dependency. To enable it, load `cl-http-kit/tls`, create an HTTP client, and pass it to `make-client`. `close-client` clears connections on an owned client. When the caller supplies `:http-client`, the caller retains its lifetime and connection management.
+The client uses `cl-http-kit` directly and HTTP message types from `cl-http-message-kit`. If `:http-client` is omitted, `make-client` creates and owns a client that speaks plain HTTP only. `close-client` clears connections on an owned client. When the caller supplies `:http-client`, the caller retains its lifetime and connection management.
 
-HTTPS requires a caller-supplied TLS-enabled `http-kit/client:http-client`. Without it, a `https` base URL signals `ollama-argument-error`.
-
-```lisp
-(asdf:load-system "cl-http-kit/tls")
-(defparameter *https-http-client*
-  (http-kit/client:make-http-client :default-timeout nil))
-(defparameter *ollama*
-  (ollama-kit:make-client
-   :base-url "https://localhost:11434/api"
-   :http-client *https-http-client*))
-```
+`make-client` signals `ollama-argument-error` when its base URL uses HTTPS and `:http-client` is omitted. HTTPS requires a caller-supplied TLS-capable `http-kit/client:http-client` passed as `:http-client`. With the dependency versions pinned by this release, loading `cl-http-kit/tls` fails with `CRYPTO-PROVIDER-UNAVAILABLE`, so this release has no tested HTTPS configuration.
 
 The base URL must use HTTP or HTTPS, contain a valid authority, and have no userinfo, query, or fragment. Base URLs and URLs passed to `web-fetch` reject dot path segments. Plain HTTP is allowed for `localhost`, `127.0.0.1`, and IPv6 loopback `::1` (written as `[::1]` in a URL). Other plain HTTP base URLs require `:allow-insecure-http t`.
 

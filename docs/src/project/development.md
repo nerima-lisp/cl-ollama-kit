@@ -17,7 +17,8 @@ src/
   json.lisp             JSON objects and messages
   http-encoding.lisp    bounded request encoding
   http-decoding.lisp    response decoding and HTTP errors
-  transport.lisp        cl-http-kit requests and timeout monitoring
+  transport.lisp        cl-http-kit requests
+  transport-timeouts.lisp timeout monitoring
   transport-response.lisp JSON and raw response helpers
   cps.lisp              continuation-passing entry points
   stream-core.lisp      synchronous stream requests and callbacks

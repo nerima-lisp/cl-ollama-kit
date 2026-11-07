@@ -9,7 +9,7 @@ Version 3.0.0 removes the network-boundary and pull-stream APIs. It does not pro
 | `client-network-boundary` | `client-http-client` |
 | `call-with-stream` | Use the format-specific `call-with-ollama-stream`, `call-with-openai-stream`, or `call-with-anthropic-stream`. |
 
-Construct clients with a `cl-http-kit` HTTP client. For HTTPS, build a TLS-enabled `http-kit/client:http-client` and pass it to `make-client` with `:http-client`. The default client speaks plain HTTP only. See the [API reference](../reference/api.md#client-and-transport).
+Construct clients with a `cl-http-kit` HTTP client. The default client speaks plain HTTP only. `make-client` signals `ollama-argument-error` when its base URL uses HTTPS and `:http-client` is omitted. HTTPS requires a caller-supplied TLS-capable `http-kit/client:http-client` passed as `:http-client`. With the dependency versions pinned by this release, loading `cl-http-kit/tls` fails with `CRYPTO-PROVIDER-UNAVAILABLE`, so this release has no tested HTTPS configuration. See the [API reference](../reference/api.md#client-and-transport).
 
 ## HTTP message model exports
 

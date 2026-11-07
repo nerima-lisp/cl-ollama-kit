@@ -98,7 +98,7 @@ the successful HTTP response object.
 JSON objects. `:max-results` is optional on `web-search` and must be between 1
 and 10. Configure the client with `:api-key` when the service requires
 authentication. A URL passed to `web-fetch` must use HTTP or HTTPS, contain a
-valid authority, and omit user information.
+valid authority, omit user information, and contain no dot path segments.
 
 ## Streaming
 

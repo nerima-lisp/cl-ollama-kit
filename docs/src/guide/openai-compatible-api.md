@@ -82,11 +82,15 @@ and forwards the options you supply. It uses its `/v1` base URL when you omit
 defaults and validation rules. Streaming calls accept per-call `:timeout`,
 `:response-timeout`, `:idle-timeout`, `:headers`, and `:cancel-token` options.
 
-The default client speaks plain HTTP. To use HTTPS, create a generic
-`ollama-kit:make-client` with an HTTPS `/v1` base URL and a TLS-enabled
-`:http-client` as described in [Getting started](../getting-started.md).
-OpenAI-compatible endpoint functions accept that client. The same
-`:allow-insecure-http` validation applies to both client constructors.
+The default client speaks plain HTTP only. `make-openai-client` uses the same
+HTTPS validation as `make-client`: an HTTPS base URL without `:http-client`
+signals `ollama-argument-error`. HTTPS requires a caller-supplied TLS-capable
+`http-kit/client:http-client` passed as `:http-client`. With the dependency
+versions pinned by this release, loading `cl-http-kit/tls` fails with
+`CRYPTO-PROVIDER-UNAVAILABLE`, so this release has no tested HTTPS
+configuration. OpenAI-compatible endpoint functions accept the resulting
+`ollama-kit` client. The same `:allow-insecure-http` validation applies to
+both client constructors.
 
 Create a cancellation token with
 `http-kit/client:make-http-cancellation-token` and pass it as `:cancel-token`
