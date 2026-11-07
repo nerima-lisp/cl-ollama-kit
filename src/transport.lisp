@@ -202,8 +202,8 @@ header with the same name. NIL suppresses the default header."
                                :message
                                "HTTP response body exceeds the configured limit."
                                :detail
-                               max-input-length))))))
-          (response-with-body response)))))))
+                               max-input-length)))))))
+          (response-with-body response))))))
 
 (defun %perform-request-with-optional-body (client method
                                                    path
