@@ -14,17 +14,22 @@
 
   (describe "Incremental NDJSON framing"
   (it-each
-   (("LF" (format nil "{\"id\":1}~%"))
-    ("CRLF" (format nil "{\"id\":1}~C~%" #\Return))
-    ("EOF" "{\"id\":1}"))
+   (("LF" :lf)
+    ("CRLF" :crlf)
+    ("EOF" :eof))
    "decodes one JSON record terminated by ~A"
-   (ending wire)
-   (let* ((events nil)
-         (parser (ollama-kit::%make-stream-parser
-                  :ndjson
-                  128
-                  (lambda (event)
-                    (push event events)))))
+   (ending wire-ending)
+   (let* ((wire
+           (ecase wire-ending
+             (:lf (format nil "{\"id\":1}~%"))
+             (:crlf (format nil "{\"id\":1}~C~%" #\Return))
+             (:eof "{\"id\":1}")))
+          (events nil)
+          (parser (ollama-kit::%make-stream-parser
+                   :ndjson
+                   128
+                   (lambda (event)
+                     (push event events)))))
      (ollama-kit::%feed-stream-parser parser (%stream-test-octets wire))
      (ollama-kit::%finish-stream-parser parser)
      (assert (= 1 (length events)))
@@ -95,7 +100,11 @@
       (ollama-kit::%feed-stream-parser
        incomplete
        (%stream-test-octets "{\"text\":\""))
-      (ollama-kit::%feed-stream-parser incomplete #(240 159))
+      (ollama-kit::%feed-stream-parser
+       incomplete
+       (make-array 2
+                   :element-type '(unsigned-byte 8)
+                   :initial-contents '(240 159)))
       (assert (%signals-p
                'ollama-protocol-error
                (lambda ()
