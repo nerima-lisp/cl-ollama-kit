@@ -3,6 +3,9 @@
 Ollama exposes an OpenAI-compatible API below `/v1`. Create a client with
 `ollama-kit:make-openai-client`; its default base URL is
 `http://localhost:11434/v1`.
+Custom base URLs must use HTTP or HTTPS, have a valid authority, and omit user
+information.
+See [Getting started](../getting-started.md) for ASDF loading and client setup.
 
 Replace `"model"` in the request examples with a model available through this
 endpoint.
@@ -37,6 +40,10 @@ JSON request helpers take a JSON object body. The helpers map to these paths:
 | `ollama-kit:openai-responses` | `/responses` | Create an experimental response. |
 | `ollama-kit:openai-images` | `/images/generations` | Send a request to the experimental image endpoint. |
 
+`openai-model` percent-encodes the model name as one path segment. The name
+must be non-empty, cannot be `.` or `..`, and cannot contain path separators,
+URL delimiters such as `?`, `#`, or `%`, controls, or whitespace.
+
 `openai-images` forwards its JSON body and returns a decoded JSON object. It
 does not have a streaming helper.
 
@@ -69,16 +76,24 @@ marker.
 ## Authentication and transport
 
 Pass `:api-key` to `ollama-kit:make-openai-client` to add a Bearer
-Authorization value. The constructor also accepts `:headers`, `:timeout`,
-`:max-input-length`, `:max-request-length`, and `:allow-insecure-http`.
-Streaming calls accept per-call `:timeout`, `:response-timeout`,
-`:idle-timeout`, `:headers`, and `:cancel-token` options.
+Authorization value. `make-openai-client` uses the shared client option table
+and forwards the options you supply. It uses its `/v1` base URL when you omit
+`:base-url`. See the [API reference](../reference/api.md) for the option
+defaults and validation rules. Streaming calls accept per-call `:timeout`,
+`:response-timeout`, `:idle-timeout`, `:headers`, and `:cancel-token` options.
 
 The default client speaks plain HTTP. To use HTTPS, create a generic
 `ollama-kit:make-client` with an HTTPS `/v1` base URL and a TLS-enabled
 `:http-client` as described in [Getting started](../getting-started.md).
 OpenAI-compatible endpoint functions accept that client. The same
-`:allow-insecure-http` rule applies to generic clients.
+`:allow-insecure-http` validation applies to both client constructors.
+
+Create a cancellation token with
+`http-kit/client:make-http-cancellation-token` and pass it as `:cancel-token`
+to a streaming call. Another thread can cancel it with
+`http-kit/client:http-client-cancel-request`; the request signals
+`ollama-cancelled`. If an event callback exits non-locally, the request is
+cancelled and the connection is released.
 
 See the [API reference](../reference/api.md) for lower-level request and
 response details and the [conditions reference](../reference/conditions.md)

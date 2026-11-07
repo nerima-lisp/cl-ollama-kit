@@ -3,6 +3,8 @@
 The native helpers target Ollama's `/api` endpoints. A client created by
 `ollama-kit:make-client` defaults to `http://localhost:11434/api` and joins
 relative endpoint paths to that base URL.
+Custom base URLs and URLs passed to `web-fetch` must use HTTP or HTTPS and have
+a valid authority. Both reject user information.
 The examples assume `*ollama*` is the client created in [Getting
 started](../getting-started.md).
 
@@ -23,8 +25,10 @@ Generation accepts `:suffix`, `:images`, `:format`, `:options`, `:system`,
 `:steps`. Chat accepts `:tools`, `:format`, `:options`, `:keep-alive`,
 `:think`, `:logprobs`, and `:top-logprobs`.
 
-Create messages explicitly so optional fields remain distinct from omitted
-fields:
+For `:think`, `t` and `nil` are sent as JSON booleans. Other symbols and strings
+are sent as enum strings.
+
+Send a chat request:
 
 ```lisp
 (ollama-kit:chat
@@ -32,8 +36,7 @@ fields:
  "model"
  (list (ollama-kit:make-message
         "user"
-        "Return a short answer."
-        :thinking nil)))
+        "Return a short answer.")))
 ```
 
 Embedding input may be one string or a list or vector of strings. `:truncate`,
@@ -94,7 +97,8 @@ the successful HTTP response object.
 `ollama-kit:web-fetch` sends a request to `/web_fetch`. Both return decoded
 JSON objects. `:max-results` is optional on `web-search` and must be between 1
 and 10. Configure the client with `:api-key` when the service requires
-authentication.
+authentication. A URL passed to `web-fetch` must use HTTP or HTTPS, contain a
+valid authority, and omit user information.
 
 ## Streaming
 
@@ -107,9 +111,16 @@ newline.
 
 Callbacks run in the thread consuming the HTTP response. Stream endpoint functions accept
 per-call `:response-timeout`, `:idle-timeout`, and `:cancel-token` options in
-addition to `:timeout` and `:headers`. See the [conditions
-reference](../reference/conditions.md) for timeout, cancellation, and protocol
-errors.
+addition to `:timeout` and `:headers`. See the [API reference](../reference/api.md)
+for client option defaults and the [conditions reference](../reference/conditions.md)
+for timeout, cancellation, and protocol errors.
+
+Create a cancellation token with
+`http-kit/client:make-http-cancellation-token` and pass it as `:cancel-token`.
+Another thread can cancel it with
+`http-kit/client:http-client-cancel-request`; the request signals
+`ollama-cancelled`. If a callback exits non-locally, the request is cancelled
+and the connection is released.
 
 `ollama-kit:call-with-ollama-stream` consumes an arbitrary native path using a
 caller-supplied method and event callback. See the [API

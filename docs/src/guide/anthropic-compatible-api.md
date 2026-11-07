@@ -3,6 +3,9 @@
 Ollama exposes an Anthropic-compatible Messages API below `/v1/messages`.
 Create a client with `ollama-kit:make-anthropic-client`; its default base URL
 is `http://localhost:11434/v1`.
+Custom base URLs must use HTTP or HTTPS, have a valid authority, and omit user
+information.
+See [Getting started](../getting-started.md) for ASDF loading and client setup.
 
 Replace `"model"` in the request examples with a model available through this
 endpoint.
@@ -69,5 +72,13 @@ The generic constructor sends `:api-key` as a Bearer value, so set
 `X-API-KEY` explicitly through `:headers` when using it for this API.
 Anthropic-compatible endpoint functions accept that client.
 
-See the [API reference](../reference/api.md) for request and response details
-and the [conditions reference](../reference/conditions.md) for failures.
+Create a cancellation token with
+`http-kit/client:make-http-cancellation-token` and pass it as `:cancel-token`
+to a streaming call. Another thread can cancel it with
+`http-kit/client:http-client-cancel-request`; the request signals
+`ollama-cancelled`. If an event callback exits non-locally, the request is
+cancelled and the connection is released.
+
+See the [API reference](../reference/api.md) for client option defaults and
+request and response details. See the [conditions reference](../reference/conditions.md)
+for failures.
