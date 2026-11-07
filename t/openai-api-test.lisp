@@ -1,360 +1,302 @@
 (in-package #:ollama-kit/test)
 
-(describe "OpenAI-compatible API contracts"
-          (it "lists models through the OpenAI-compatible endpoint"
-              (let ((captured (list nil)))
-                (let ((value
-                       (openai-models
-                        (openai-client-with-request-function
-                         (lambda (request &key timeout)
-                           (declare (ignore timeout))
-                           (setf (car captured) request)
-                           (response-with-text
-                            "{\"object\":\"list\",\"data\":[{\"id\":\"model\",\"object\":\"model\",\"owned_by\":\"ollama\"}]}"))))))
-                  (let* ((request (car captured))
-                         (models (gethash "data" value))
-                         (model (aref models 0)))
-                    (assert (hash-table-p value))
-                    (assert (http-request-p request))
-                    (assert (eq :get (http-request-method request)))
-                    (assert
-                     (string= "http://localhost:11434/v1/models"
-                              (http-request-url request)))
-                    (assert (null (http-request-body request)))
-                    (assert (equal "list" (gethash "object" value)))
-                    (assert (equal "model" (gethash "id" model)))
-                    (assert (equal "ollama" (gethash "owned_by" model)))))))
-          (it "retrieves one model through the OpenAI-compatible endpoint"
-              (let ((captured (list nil)))
-                (let ((value
-                       (openai-model
-                        (openai-client-with-request-function
-                         (lambda (request &key timeout)
-                           (declare (ignore timeout))
-                           (setf (car captured) request)
-                           (response-with-text
-                            "{\"id\":\"model\",\"object\":\"model\",\"owned_by\":\"ollama\"}")))
-                        "model")))
-                  (let ((request (car captured)))
-                    (assert (hash-table-p value))
-                    (assert (http-request-p request))
-                    (assert (eq :get (http-request-method request)))
-                    (assert
-                     (string= "http://localhost:11434/v1/models/model"
-                              (http-request-url request)))
-                    (assert (null (http-request-body request)))
-                    (assert (equal "model" (gethash "id" value)))
-                    (assert (equal "model" (gethash "object" value)))))))
-          (it
-           "sends chat JSON bodies including generic tool and response format fields"
-           (let ((captured (list nil))
-                 (body
-                  (json-object "model"
-                               "model"
-                               "messages"
-                               (vector
-                                (json-object "role" "user" "content" "Hello"))
-                               "tools"
-                               (vector
-                                (json-object "type"
-                                             "function"
-                                             "function"
-                                             (json-object "name"
-                                                          "lookup"
-                                                          "parameters"
-                                                          (json-object "type"
-                                                                       "object"))))
-                               "response_format"
-                               (json-object "type" "json_object"))))
-             (let ((value
-                    (openai-chat-completions
-                     (openai-client-with-request-function
-                      (lambda (request &key timeout)
-                        (declare (ignore timeout))
-                        (setf (car captured) request)
-                        (response-with-text
-                         "{\"id\":\"chatcmpl-1\",\"object\":\"chat.completion\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}")))
-                     body)))
-               (let* ((request (car captured))
-                      (sent (request-json-object request))
-                      (messages (gethash "messages" sent))
-                      (tools (gethash "tools" sent))
-                      (tool (aref tools 0))
-                      (function (gethash "function" tool))
-                      (choices (gethash "choices" value))
-                      (choice (aref choices 0))
-                      (message (gethash "message" choice)))
-                 (assert (hash-table-p value))
-                 (assert (http-request-p request))
-                 (assert (eq :post (http-request-method request)))
-                 (assert
-                  (string= "http://localhost:11434/v1/chat/completions"
-                           (http-request-url request)))
-                 (assert (equal "chatcmpl-1" (gethash "id" value)))
-                 (assert (equal "chat.completion" (gethash "object" value)))
-                 (assert (equal "{\"ok\":true}" (gethash "content" message)))
-                 (assert (equal "model" (gethash "model" sent)))
-                 (assert (equal "Hello" (gethash "content" (aref messages 0))))
-                 (assert (equal "lookup" (gethash "name" function)))
-                 (assert
-                  (equal "json_object"
-                         (gethash "type" (gethash "response_format" sent))))))))
-          (it "supports text completions as JSON and SSE"
-    (let ((captured (list nil))
-          (events nil)
-          (body (json-object "model" "model" "prompt" "Hello")))
-      (let ((value
-             (openai-completions
-              (openai-client-with-request-function
-               (lambda (request &key timeout)
-                 (declare (ignore timeout))
-                 (setf (car captured) request)
-                 (response-with-text
-                  "{\"id\":\"cmpl-1\",\"object\":\"text_completion\",\"choices\":[{\"text\":\"Hi\",\"index\":0,\"finish_reason\":\"stop\"}]}")))
-              body)))
-        (let* ((request (car captured))
-               (choices (gethash "choices" value))
-               (choice (aref choices 0)))
-          (assert (hash-table-p value))
-          (assert (http-request-p request))
-          (assert (eq :post (http-request-method request)))
-          (assert
-           (string= "http://localhost:11434/v1/completions"
-                    (http-request-url request)))
-          (assert (equal "cmpl-1" (gethash "id" value)))
-          (assert (equal "Hi" (gethash "text" choice)))
-          (assert
-           (equal "Hello" (gethash "prompt" (request-json-object request))))))
-      (openai-completions-stream
-       (openai-client-with-request-function
-        (lambda (request &key timeout)
-          (declare (ignore timeout))
-          (setf (car captured) request)
-          (make-http-response :status
-                              200
-                              :headers
-                              '(("content-type" . "text/event-stream"))
-                              :stream
-                              (make-string-input-stream
-                               (format nil
-                                       "data: {\"choices\":[{\"text\":\"Hi\"}]}~%~%data: [DONE]~%~%"))))
-       body
-       (lambda (event)
-         (push event events)))
-      (let* ((request (car captured))
-             (event (first events))
-             (choices (gethash "choices" event))
-             (choice (aref choices 0)))
-        (assert (= 1 (length events)))
-        (assert (equal "Hi" (gethash "text" choice)))
-        (assert (http-request-p request))
-        (assert (eq :post (http-request-method request)))
-        (assert
-         (string= "http://localhost:11434/v1/completions"
-                  (http-request-url request)))
-        (assert
-         (eq t (gethash "stream" (request-json-object request)))))))
-)
-          (it "parses chat completion SSE and forces stream mode in the request"
-    (let ((captured (list nil))
-          (events nil))
+(progn
+  (defun %call-with-openai-loopback-response (payload content-type function)
+    (let* ((server
+             (make-loopback-http-server
+              :headers
+              (list (http-message-kit:make-http-header "content-type" content-type))
+              :body
+              (cl-codec-kit:string-to-octets payload :encoding :utf-8)
+              :keep-alive-p nil))
+           (client
+             (make-openai-client
+              :base-url
+              (concatenate 'string
+                           (loopback-http-server-url server)
+                           "/v1"))))
+      (unwind-protect
+           (funcall function client server)
+        (close-client client))))
+
+  (defun %assert-openai-loopback-request (server method path)
+    (let ((request (loopback-http-server-request server)))
+      (assert (http-message-kit:http-request-p request))
+      (assert (string-equal (symbol-name method)
+                            (http-message-kit:http-request-method request)))
+      (assert
+       (string= (concatenate 'string "/v1" path)
+                (http-message-kit:http-request-target request)))
+      request))
+
+  (defun %openai-request-header-content (request name)
+    (loop for header in (http-message-kit:http-request-headers request)
+          when (string-equal name (http-message-kit:http-header-name header))
+            return (http-message-kit:http-header-content header)))
+
+  (defun %openai-json-object (json)
+    (json-kit:parse json :object-type :hash-table :array-type :vector))
+
+  (defun %openai-first-model-id (value)
+    (gethash "id" (aref (gethash "data" value) 0)))
+
+  (defun %openai-single-model-id (value)
+    (gethash "id" value))
+
+  (defun %openai-assert-chat-body (body)
+  (let* ((messages (gethash "messages" body))
+         (tools (gethash "tools" body))
+         (tool-function (gethash "function" (aref tools 0))))
+    (assert (equal "fixture-model" (gethash "model" body)))
+    (assert (= 1 (length messages)))
+    (assert (equal "user" (gethash "role" (aref messages 0))))
+    (assert (equal "Hello" (gethash "content" (aref messages 0))))
+    (assert (equal "lookup" (gethash "name" tool-function)))
+    (assert (equal "object"
+                   (gethash "type" (gethash "parameters" tool-function))))
+    (assert (equal "json_object"
+                   (gethash "type" (gethash "response_format" body))))
+    (multiple-value-bind (stream present-p) (gethash "stream" body)
+      (when present-p
+        (assert (eq t stream))))))
+
+  (defun %openai-assert-completion-body (body)
+  (assert (equal "fixture-model" (gethash "model" body)))
+  (assert (equal "Hello" (gethash "prompt" body)))
+  (multiple-value-bind (stream present-p) (gethash "stream" body)
+    (when present-p
+      (assert (eq t stream)))))
+
+  (defun %openai-chat-content (value)
+    (let* ((choice (aref (gethash "choices" value) 0))
+           (message (gethash "message" choice)))
+      (gethash "content" message)))
+
+  (defun %openai-completion-text (value)
+    (gethash "text" (aref (gethash "choices" value) 0)))
+
+  (defun %openai-chat-event-content (event)
+    (gethash "content"
+             (gethash "delta"
+                      (aref (gethash "choices" event) 0))))
+
+  (defun %openai-completion-event-text (event)
+    (gethash "text" (aref (gethash "choices" event) 0)))
+
+  (describe "OpenAI-compatible API contracts"
+    (it-each
+     ((openai-models
+       "/models"
+       nil
+       "{\"object\":\"list\",\"data\":[{\"id\":\"fixture-model\",\"object\":\"model\",\"owned_by\":\"ollama\"}]}"
+       %openai-first-model-id
+       "fixture-model")
+      (openai-model
+       "/models/fixture-model"
+       "fixture-model"
+       "{\"id\":\"fixture-model\",\"object\":\"model\",\"owned_by\":\"ollama\"}"
+       %openai-single-model-id
+       "fixture-model"))
+     "reads model ids from ~A"
+     (operation path model response-body response-reader expected-id)
+     (%call-with-openai-loopback-response
+      response-body
+      "application/json"
+      (lambda (client server)
+        (let* ((value
+                 (if model
+                     (funcall operation client model)
+                     (funcall operation client)))
+               (request
+                 (%assert-openai-loopback-request server :get path)))
+          (assert (null (http-message-kit:http-request-body request)))
+          (assert (equal expected-id (funcall response-reader value)))))))
+
+    (it-each
+     ((openai-chat-completions
+       "/chat/completions"
+       "{\"model\":\"fixture-model\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"}}}],\"response_format\":{\"type\":\"json_object\"}}"
+       "{\"id\":\"chatcmpl-1\",\"object\":\"chat.completion\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}"
+       %openai-assert-chat-body
+       %openai-chat-content
+       "{\"ok\":true}")
+      (openai-completions
+       "/completions"
+       "{\"model\":\"fixture-model\",\"prompt\":\"Hello\"}"
+       "{\"id\":\"cmpl-1\",\"object\":\"text_completion\",\"choices\":[{\"text\":\"Hi\",\"index\":0,\"finish_reason\":\"stop\"}]}"
+       %openai-assert-completion-body
+       %openai-completion-text
+       "Hi"))
+     "sends and decodes the ~A response"
+     (operation path request-body response-body request-checker response-reader expected-value)
+     (%call-with-openai-loopback-response
+      response-body
+      "application/json"
+      (lambda (client server)
+        (let* ((body (%openai-json-object request-body))
+               (value (funcall operation client body))
+               (request (%assert-openai-loopback-request server :post path)))
+          (funcall request-checker (request-json-object request))
+          (assert (equal expected-value (funcall response-reader value)))))))
+
+    (it-each
+     ((openai-completions-stream
+       "/completions"
+       "{\"model\":\"fixture-model\",\"prompt\":\"Hello\"}"
+       "data: {\"choices\":[{\"text\":\"Hi\"}]}~%~%data: [DONE]~%~%"
+       %openai-assert-completion-body
+       %openai-completion-event-text
+       "Hi"
+       nil)
       (openai-chat-completions-stream
-       (openai-client-with-request-function
-        (lambda (request &key timeout)
-          (declare (ignore timeout))
-          (setf (car captured) request)
-          (make-http-response :status
-                              200
-                              :headers
-                              '(("content-type" . "text/event-stream"))
-                              :stream
-                              (make-string-input-stream
-                               (format nil
-                                       "event: message~%data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}~%~%data: [DONE]~%~%"))))
-       (json-object "model" "model" "messages" #())
-       (lambda (event)
-         (push event events))
-       :headers
-       '(("Accept" . "application/x-ndjson")))
-      (let* ((request (car captured))
-             (event (first events))
-             (choices (gethash "choices" event))
-             (choice (aref choices 0))
-             (delta (gethash "delta" choice)))
-        (assert (= 1 (length events)))
-        (assert (equal "Hi" (gethash "content" delta)))
-        (assert (http-request-p request))
-        (assert (eq :post (http-request-method request)))
-        (assert
-         (string= "http://localhost:11434/v1/chat/completions"
-                  (http-request-url request)))
-        (assert
-         (equal "text/event-stream"
-                (cdr (assoc "Accept"
-                            (http-request-headers request)
-                            :test #'string-equal))))
-        (assert
-         (eq t (gethash "stream" (request-json-object request)))))))
-)
-          (it "sends embeddings requests and parses the returned vector"
-              (let ((captured (list nil))
-                    (body
-                     (json-object "model"
-                                  "model"
-                                  "input"
-                                  (vector "Hello" "world")
-                                  "encoding_format"
-                                  "float")))
-                (let ((value
-                       (openai-embeddings
-                        (openai-client-with-request-function
-                         (lambda (request &key timeout)
-                           (declare (ignore timeout))
-                           (setf (car captured) request)
-                           (response-with-text
-                            "{\"object\":\"list\",\"data\":[{\"object\":\"embedding\",\"index\":0,\"embedding\":[0.1,0.2]}],\"model\":\"model\",\"usage\":{\"prompt_tokens\":2,\"total_tokens\":2}}")))
-                        body)))
-                  (let* ((request (car captured))
-                         (sent (request-json-object request))
-                         (input (gethash "input" sent))
-                         (data (gethash "data" value))
-                         (embedding (gethash "embedding" (aref data 0))))
-                    (assert (hash-table-p value))
-                    (assert (http-request-p request))
-                    (assert (eq :post (http-request-method request)))
-                    (assert
-                     (string= "http://localhost:11434/v1/embeddings"
-                              (http-request-url request)))
-                    (assert (equal "list" (gethash "object" value)))
-                    (assert (equal "model" (gethash "model" value)))
-                    (assert (equal "model" (gethash "model" sent)))
-                    (assert (equal "float" (gethash "encoding_format" sent)))
-                    (assert (equal "Hello" (aref input 0)))
-                    (assert (equal "world" (aref input 1)))
-                    (assert (< (abs (- 0.1 (aref embedding 0))) 0.000001))
-                    (assert (< (abs (- 0.2 (aref embedding 1))) 0.000001))))))
-          (it "supports responses as JSON"
-              (let ((captured (list nil))
-                    (body
-                     (json-object "model"
-                                  "model"
-                                  "input"
-                                  "Hello"
-                                  "temperature"
-                                  0)))
-                (let ((value
-                       (openai-responses
-                        (openai-client-with-request-function
-                         (lambda (request &key timeout)
-                           (declare (ignore timeout))
-                           (setf (car captured) request)
-                           (response-with-text
-                            "{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hello\"}]}]}")))
-                        body)))
-                  (let* ((request (car captured))
-                         (sent (request-json-object request))
-                         (output (aref (gethash "output" value) 0))
-                         (content (aref (gethash "content" output) 0)))
-                    (assert (hash-table-p value))
-                    (assert (http-request-p request))
-                    (assert (eq :post (http-request-method request)))
-                    (assert
-                     (string= "http://localhost:11434/v1/responses"
-                              (http-request-url request)))
-                    (assert (equal "resp_1" (gethash "id" value)))
-                    (assert (equal "response" (gethash "object" value)))
-                    (assert (equal "completed" (gethash "status" value)))
-                    (assert (equal "model" (gethash "model" sent)))
-                    (assert (equal "Hello" (gethash "input" sent)))
-                    (assert (equal "output_text" (gethash "type" content)))
-                    (assert (equal "Hello" (gethash "text" content)))))))
-          (it "supports responses as SSE and observes completion"
-    (let ((captured (list nil))
-          (events nil)
-          (body (json-object "model" "model" "input" "Hello")))
-      (openai-responses-stream
-       (openai-client-with-request-function
-        (lambda (request &key timeout)
-          (declare (ignore timeout))
-          (setf (car captured) request)
-          (make-http-response :status
-                              200
-                              :headers
-                              '(("content-type" . "text/event-stream"))
-                              :stream
-                              (make-string-input-stream
-                               (format nil
-                                       "event: response.created~%data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}~%~%event: response.completed~%data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\"}}~%~%data: [DONE]~%~%"))))
-       body
-       (lambda (event)
-         (push event events)))
-      (let* ((request (car captured))
-             (ordered-events (nreverse events))
-             (created (first ordered-events))
-             (completed (second ordered-events)))
-        (assert (= 2 (length ordered-events)))
-        (assert (equal "response.created" (gethash "type" created)))
-        (assert
-         (equal "resp_1" (gethash "id" (gethash "response" created))))
-        (assert (equal "response.completed" (gethash "type" completed)))
-        (assert
-         (equal "completed"
-                (gethash "status" (gethash "response" completed))))
-        (assert (http-request-p request))
-        (assert (eq :post (http-request-method request)))
-        (assert
-         (string= "http://localhost:11434/v1/responses"
-                  (http-request-url request)))
-        (let ((sent (request-json-object request)))
-          (assert (equal "model" (gethash "model" sent)))
-          (assert (equal "Hello" (gethash "input" sent)))
-          (assert (eq t (gethash "stream" sent)))))))
-))
+       "/chat/completions"
+       "{\"model\":\"fixture-model\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"}}}],\"response_format\":{\"type\":\"json_object\"}}"
+       "event: message~%data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}~%~%data: [DONE]~%~%"
+       %openai-assert-chat-body
+       %openai-chat-event-content
+       "Hello"
+       '(("Accept" . "application/x-ndjson"))))
+     "sends the ~A request body and delivers its callback event"
+     (operation path request-body sse-payload request-checker event-reader expected-text request-headers)
+     (%call-with-openai-loopback-response
+      (format nil sse-payload)
+      "text/event-stream"
+      (lambda (client server)
+        (let* ((body (%openai-json-object request-body))
+               (events nil))
+          (funcall operation
+                   client
+                   body
+                   (lambda (event) (push event events))
+                   :headers request-headers)
+          (let* ((request (%assert-openai-loopback-request server :post path))
+                 (sent (request-json-object request))
+                 (event (first events)))
+            (progn
+              (funcall request-checker sent)
+              (assert (eq t (gethash "stream" sent))))
+            (when request-headers
+              (assert
+               (equal "application/x-ndjson"
+                      (%openai-request-header-content request "Accept"))))
+            (assert (= 1 (length events)))
+            (assert (equal expected-text (funcall event-reader event))))))))
+
+    (it "sends embeddings and decodes the returned vector"
+      (%call-with-openai-loopback-response
+       "{\"object\":\"list\",\"data\":[{\"object\":\"embedding\",\"index\":0,\"embedding\":[0.1,0.2]}],\"model\":\"fixture-model\",\"usage\":{\"prompt_tokens\":2,\"total_tokens\":2}}"
+       "application/json"
+       (lambda (client server)
+         (let* ((body
+                  (json-object "model"
+                               "fixture-model"
+                               "input"
+                               #("Hello" "world")
+                               "encoding_format"
+                               "float"))
+                (value (openai-embeddings client body))
+                (request
+                  (%assert-openai-loopback-request server :post "/embeddings"))
+                (sent (request-json-object request))
+                (data (gethash "data" value))
+                (embedding (gethash "embedding" (aref data 0))))
+           (assert (equal "fixture-model" (gethash "model" sent)))
+           (assert (equal "float" (gethash "encoding_format" sent)))
+           (assert (equalp #("Hello" "world") (gethash "input" sent)))
+           (assert (equal "fixture-model" (gethash "model" value)))
+           (assert (< (abs (- 0.1 (aref embedding 0))) 0.000001))
+           (assert (< (abs (- 0.2 (aref embedding 1))) 0.000001)))))
+
+    (it "sends a response request and decodes output text"
+      (%call-with-openai-loopback-response
+       "{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hello\"}]}]}"
+       "application/json"
+       (lambda (client server)
+         (let* ((body
+                  (json-object "model"
+                               "fixture-model"
+                               "input"
+                               "Hello"
+                               "temperature"
+                               0))
+                (value (openai-responses client body))
+                (request (%assert-openai-loopback-request server :post "/responses"))
+                (sent (request-json-object request))
+                (output (aref (gethash "output" value) 0))
+                (content (aref (gethash "content" output) 0)))
+           (assert (equal "fixture-model" (gethash "model" sent)))
+           (assert (equal "Hello" (gethash "input" sent)))
+           (assert (= 0 (gethash "temperature" sent)))
+           (assert (equal "resp_1" (gethash "id" value)))
+           (assert (equal "response" (gethash "object" value)))
+           (assert (equal "completed" (gethash "status" value)))
+           (assert (equal "output_text" (gethash "type" content)))
+           (assert (equal "Hello" (gethash "text" content)))))))
+
+    (it "delivers ordered response lifecycle events"
+      (%call-with-openai-loopback-response
+       (format nil
+               "event: response.created~%data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"status\":\"in_progress\"}}~%~%event: response.completed~%data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"status\":\"completed\"}}~%~%data: [DONE]~%~%")
+       "text/event-stream"
+       (lambda (client server)
+         (let ((events nil)
+               (body (json-object "model" "fixture-model" "input" "Hello")))
+           (openai-responses-stream
+            client body (lambda (event) (push event events)))
+           (let* ((request
+                    (%assert-openai-loopback-request server :post "/responses"))
+                  (sent (request-json-object request))
+                  (ordered-events (nreverse events))
+                  (created (first ordered-events))
+                  (completed (second ordered-events)))
+             (assert (equal "fixture-model" (gethash "model" sent)))
+             (assert (equal "Hello" (gethash "input" sent)))
+             (assert (eq t (gethash "stream" sent)))
+             (assert (= 2 (length ordered-events)))
+             (assert (equal "response.created" (gethash "type" created)))
+             (assert
+              (equal "resp_1" (gethash "id" (gethash "response" created))))
+             (assert (equal "response.completed" (gethash "type" completed)))
+             (assert
+              (equal "completed"
+                     (gethash "status" (gethash "response" completed))))))))))))
 
 (it "supports experimental image generation with the documented fields"
-    (let* ((captured (list nil))
-           (body
-            (json-object "model"
-                         "x/z-image-turbo"
-                         "prompt"
-                         "A cute robot learning to paint"
-                         "size"
-                         "1024x1024"
-                         "response_format"
-                         "b64_json"
-                         "n"
-                         1
-                         "quality"
-                         "standard"
-                         "style"
-                         "vivid"
-                         "user"
-                         "test-user"))
-           (client
-            (openai-client-with-request-function
-             (lambda (request &key timeout)
-               (declare (ignore timeout))
-               (setf (car captured) request)
-               (response-with-text
-                "{\"created\":1,\"data\":[{\"b64_json\":\"abc\"}]}")))))
-      (let ((value (openai-images client body)))
-        (let* ((request (car captured))
-               (sent (request-json-object request))
-               (data (gethash "data" value)))
-          (assert (hash-table-p value))
-          (assert (http-request-p request))
-          (assert (eq :post (http-request-method request)))
-          (assert
-           (string= "http://localhost:11434/v1/images/generations"
-                    (http-request-url request)))
-          (assert (= 1 (gethash "created" value)))
-          (assert (equal "x/z-image-turbo" (gethash "model" sent)))
-          (assert
-           (equal "A cute robot learning to paint" (gethash "prompt" sent)))
-          (assert (equal "1024x1024" (gethash "size" sent)))
-          (assert (equal "b64_json" (gethash "response_format" sent)))
-          (assert (= 1 (gethash "n" sent)))
-          (assert (equal "standard" (gethash "quality" sent)))
-          (assert (equal "vivid" (gethash "style" sent)))
-          (assert (equal "test-user" (gethash "user" sent)))
-          (assert (equal "abc" (gethash "b64_json" (aref data 0))))))))
+  (%call-with-openai-loopback-response
+   "{\"created\":1,\"data\":[{\"b64_json\":\"abc\"}]}"
+   "application/json"
+   (lambda (client server)
+     (let* ((body
+              (json-object "model"
+                           "x/z-image-turbo"
+                           "prompt"
+                           "A cute robot learning to paint"
+                           "size"
+                           "1024x1024"
+                           "response_format"
+                           "b64_json"
+                           "n"
+                           1
+                           "quality"
+                           "standard"
+                           "style"
+                           "vivid"
+                           "user"
+                           "test-user"))
+            (value (openai-images client body))
+            (request
+              (%assert-openai-loopback-request
+               server :post "/images/generations"))
+            (sent (request-json-object request))
+            (data (gethash "data" value)))
+       (assert (= 1 (gethash "created" value)))
+       (assert (equal "x/z-image-turbo" (gethash "model" sent)))
+       (assert
+        (equal "A cute robot learning to paint" (gethash "prompt" sent)))
+       (assert (equal "1024x1024" (gethash "size" sent)))
+       (assert (equal "b64_json" (gethash "response_format" sent)))
+       (assert (= 1 (gethash "n" sent)))
+       (assert (equal "standard" (gethash "quality" sent)))
+       (assert (equal "vivid" (gethash "style" sent)))
+       (assert (equal "test-user" (gethash "user" sent)))
+       (assert (equal "abc" (gethash "b64_json" (aref data 0))))))))
