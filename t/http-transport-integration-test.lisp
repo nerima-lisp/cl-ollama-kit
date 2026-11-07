@@ -159,18 +159,18 @@
              (lambda () (request-json client :get "/error")))))
      (unwind-protect
           (progn
+            (if (eq error-kind :api)
+                (assert (typep condition 'ollama-api-error))
+              (assert (and (typep condition 'ollama-http-error)
+                           (not (typep condition 'ollama-api-error)))))
             (assert (= 503 (ollama-http-error-status condition)))
             (assert (http-message-kit:http-response-p
                      (ollama-http-error-response condition)))
             (assert (equal expected-message
                            (ollama-http-error-body condition)))
-            (if (eq error-kind :api)
-                (progn
-                  (assert (typep condition 'ollama-api-error))
-                  (assert (hash-table-p
-                           (ollama-api-error-data condition))))
-              (assert (and (typep condition 'ollama-http-error)
-                           (not (typep condition 'ollama-api-error))))))
+            (when (eq error-kind :api)
+              (assert (hash-table-p
+                       (ollama-api-error-data condition)))))
        (close-client client)
        (%assert-loopback-server-cleaned server))))
 

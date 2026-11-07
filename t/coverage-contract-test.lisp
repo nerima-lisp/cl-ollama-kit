@@ -3,7 +3,7 @@
 (describe "argument and continuation contracts"
           (it "rejects unsafe OpenAI model names"
               (let ((client
-                     (openai-client-with-request-function
+                     (client-with-request-function
                       (lambda (request &key timeout)
                         (declare (ignore request timeout))
                         (response-with-text "{}"))))
@@ -27,67 +27,78 @@
                 (assert (= (length invalid-models) rejected))))
           (it
            "validates continuation functions and propagates continuation errors"
-           (let ((client (queued-client (response-with-text "{}")))
-                 (rejected nil))
-             (handler-case (progn
-                             (call-with-json client
-                                             :get
-                                             "/version"
-                                             nil
-                                             #'identity)
-                             (assert nil))
+           (let* ((client
+                    (client-with-request-function
+                     (lambda (request &key timeout)
+                       (declare (ignore request timeout))
+                       (response-with-text "{}"))))
+                  (error-client
+                    (client-with-request-function
+                     (lambda (request &key timeout)
+                       (declare (ignore request timeout))
+                       (response-with-text "{\"error\":\"no\"}"
+                                           :status
+                                           400))))
+                  (rejected nil))
+             (handler-case
+                 (progn
+                   (call-with-json client
+                                   :get
+                                   "/version"
+                                   nil
+                                   #'identity)
+                   (assert nil))
                (ollama-argument-error ()
                  (setf rejected t)))
              (assert rejected)
              (setf rejected nil)
-             (handler-case (progn
-                             (call-with-json
-                              (queued-client (response-with-text "{}"))
-                              :get
-                              "/version"
-                              #'identity
-                              nil)
-                             (assert nil))
+             (handler-case
+                 (progn
+                   (call-with-json client
+                                   :get
+                                   "/version"
+                                   #'identity
+                                   nil)
+                   (assert nil))
                (ollama-argument-error ()
                  (setf rejected t)))
-             (assert rejected))
-           (let ((response nil))
-             (handler-case (progn
-                             (call-with-json
-                              (queued-client (response-with-text "{}"))
-                              :get
-                              "/version"
-                              (lambda (value returned-response)
-                                (declare (ignore value))
-                                (setf response returned-response)
-                                (error "success continuation"))
-                              (lambda (condition)
-                                (declare (ignore condition))
-                                (error "failure continuation")))
-                             (assert nil))
+             (assert rejected)
+             (let ((response nil))
+               (handler-case
+                   (progn
+                     (call-with-json
+                      client
+                      :get
+                      "/version"
+                      (lambda (value returned-response)
+                        (declare (ignore value))
+                        (setf response returned-response)
+                        (error "success continuation"))
+                      (lambda (condition)
+                        (declare (ignore condition))
+                        (error "failure continuation")))
+                     (assert nil))
+                 (simple-error (condition)
+                   (assert
+                    (equal "success continuation"
+                           (simple-condition-format-control condition)))))
+               (assert (http-message-kit:http-response-p response)))
+             (handler-case
+                 (progn
+                   (call-with-json
+                    error-client
+                    :get
+                    "/version"
+                    (lambda (&rest values)
+                      (declare (ignore values)))
+                    (lambda (condition)
+                      (declare (ignore condition))
+                      (error "failure continuation")))
+                   (assert nil))
                (simple-error (condition)
                  (assert
-                  (equal "success continuation"
-                         (simple-condition-format-control condition)))))
-             (close-http-response response))
-           (handler-case (progn
-                           (call-with-json
-                            (queued-client
-                             (response-with-text "{\"error\":\"no\"}"
-                                                 :status
-                                                 400))
-                            :get
-                            "/version"
-                            (lambda (&rest values)
-                              (declare (ignore values)))
-                            (lambda (condition)
-                              (declare (ignore condition))
-                              (error "failure continuation")))
-                           (assert nil))
-             (simple-error (condition)
-               (assert
-                (equal "failure continuation"
-                       (simple-condition-format-control condition)))))))
+                  (equal "failure continuation"
+                         (simple-condition-format-control condition))))))))
 
 (describe "endpoint macro lambda-list helpers"
           (it "handles supported spec shapes and rejects incomplete endpoints"
