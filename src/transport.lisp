@@ -302,7 +302,7 @@ header with the same name. NIL suppresses the default header."
                                    (if headers-received-p :idle :response))
                              (cl-concurrent-kit:condition-wait
                               monitor-condition monitor-lock
-                              :timeout remaining))))
+                              :timeout remaining)))))
                    (when stopped-p
                      (return))
                    (when expired-kind
@@ -310,7 +310,7 @@ header with the same name. NIL suppresses the default header."
                             cancel-token)
                        (cl-concurrent-kit:with-lock-held (monitor-lock)
                          (setf monitor-timeout-kind expired-kind)))
-                     (return))))))
+                     (return)))))
              (record-response-headers ()
                (when monitor-p
                  (cl-concurrent-kit:with-lock-held (monitor-lock)
