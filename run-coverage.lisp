@@ -70,6 +70,40 @@ in the measured source set."
       (unless (plusp (getf statistics key))
         (error "Coverage target ~A is empty: ~S" key statistics)))
     (format t "~&Coverage statistics: ~S~%" statistics)
+    (dolist
+        (file
+         (uiop:symbol-call '#:cl-weave
+                           '#:coverage-file-statistics
+                           :include-pathnames
+                           include-pathnames
+                           :exclude-pathnames
+                           exclude-pathnames))
+      (format t
+              "~&~A: expressions ~D/~D, branches ~D/~D~%"
+              (namestring (getf file :pathname))
+              (getf file :expression-covered)
+              (getf file :expression-total)
+              (getf file :branch-covered)
+              (getf file :branch-total)))
+    (dolist
+        (entry
+         (uiop:symbol-call '#:cl-weave
+                           '#:coverage-uncovered-form-locations
+                           :include-pathnames
+                           include-pathnames
+                           :exclude-pathnames
+                           exclude-pathnames))
+      (format t "~&Uncovered forms in ~A:~%" (namestring (car entry)))
+      (if (cdr entry)
+          (dolist (location (cdr entry))
+            (format t
+                    "  ~A at line ~D, column ~D (through ~D:~D)~%"
+                    (getf location :kind)
+                    (getf location :line)
+                    (getf location :column)
+                    (getf location :end-line)
+                    (getf location :end-column)))
+          (format t "  none~%")))
     statistics))
 
 (let* ((root (project-directory))
