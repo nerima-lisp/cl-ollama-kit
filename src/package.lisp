@@ -12,8 +12,6 @@
    #:perform-request #:request-json #:request-raw
    #:with-http-response #:with-json-response #:with-ollama-continuations
    #:call-with-json
-   #:call-with-stream
-
    ;; Conditions.
    #:ollama-error #:ollama-error-message
    #:ollama-argument-error #:ollama-argument-error-detail
@@ -28,14 +26,8 @@
    #:+json-unspecified+ #:make-message #:json-object
 
    ;; NDJSON streams and channel integration.
-   #:ollama-stream #:ollama-stream-p #:open-ollama-stream
    #:ollama-stream-error #:ollama-stream-error-event
    #:ollama-stream-error-line
-   #:open-openai-stream
-   #:open-anthropic-stream
-   #:stream-next #:stream-events #:stream-close #:stream-closed-p
-   #:stream-channel
-
    ;; Native API.
    #:generate #:generate-stream
    #:chat #:chat-stream
@@ -58,5 +50,5 @@
 
    ;; Anthropic-compatible API.
    #:make-anthropic-client #:anthropic-messages
-   #:anthropic-messages-stream))
+   #:anthropic-messages-stream #:call-with-ollama-stream #:call-with-openai-stream #:call-with-anthropic-stream))
 

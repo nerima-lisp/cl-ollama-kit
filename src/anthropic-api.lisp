@@ -49,11 +49,14 @@ as ANTHROPIC-VERSION, can be supplied through HEADERS."
                                 "Create an Anthropic-compatible Messages response from a JSON BODY.")
 
 (define-anthropic-stream-endpoint anthropic-messages-stream
-                                  (client body
+                                  (client body event-function
                                           &key
                                           (timeout +timeout-unspecified+)
-                                          headers)
+                                          (response-timeout +timeout-unspecified+)
+                                          (idle-timeout +timeout-unspecified+)
+                                          headers
+                                          cancel-token)
                                   :post
                                   "/messages"
                                   :documentation
-                                  "Open an Anthropic-compatible Messages SSE response stream.")
+                                  "Stream an Anthropic-compatible Messages SSE response through EVENT-FUNCTION.")

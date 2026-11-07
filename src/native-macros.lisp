@@ -73,7 +73,12 @@
 (defun %validate-stream-endpoint-lambda-list (lambda-list)
   (unless
       (and (%valid-endpoint-lambda-list-p lambda-list)
-           (%valid-endpoint-lambda-variable-p (second lambda-list)))
+           (%valid-endpoint-lambda-variable-p (second lambda-list))
+           (%valid-endpoint-lambda-variable-p (third lambda-list))
+           (position '&key lambda-list)
+           (%endpoint-keyword-variable lambda-list "CANCEL-TOKEN")
+           (%endpoint-keyword-variable lambda-list "RESPONSE-TIMEOUT")
+           (%endpoint-keyword-variable lambda-list "IDLE-TIMEOUT"))
     (error 'program-error))
   lambda-list)
 
@@ -175,7 +180,14 @@ successful response before returning its decoded value."
   (%validate-endpoint-declaration name lambda-list method path)
   (%validate-stream-endpoint-lambda-list lambda-list)
   (let ((client-var (first lambda-list))
-        (body-var (second lambda-list)))
+        (body-var (second lambda-list))
+        (event-function-var (third lambda-list))
+        (response-timeout-var
+         (%endpoint-keyword-variable lambda-list "RESPONSE-TIMEOUT"))
+        (idle-timeout-var
+         (%endpoint-keyword-variable lambda-list "IDLE-TIMEOUT"))
+        (cancel-token-var
+         (%endpoint-keyword-variable lambda-list "CANCEL-TOKEN")))
     (multiple-value-bind (timeout-var headers-var)
         (%endpoint-keyword-variables lambda-list)
       `(defun ,name ,lambda-list
@@ -184,18 +196,25 @@ successful response before returning its decoded value."
          (,stream-opener ,client-var
                          ',method
                          ',path
+                         ,event-function-var
                          :body
                          (,body-transformer ,body-var)
                          :timeout
                          ,timeout-var
+                         :response-timeout
+                         ,response-timeout-var
+                         :idle-timeout
+                         ,idle-timeout-var
                          :headers
-                         ,headers-var)))))
+                         ,headers-var
+                         :cancel-token
+                         ,cancel-token-var)))))
 
 (defun %expand-openai-stream-endpoint (name lambda-list
                                             method
                                             path
                                             documentation)
-  (%expand-stream-endpoint 'open-openai-stream
+  (%expand-stream-endpoint 'call-with-openai-stream
                            '%openai-stream-body
                            name
                            lambda-list
@@ -233,8 +252,8 @@ successful response before returning its decoded value."
                                                  path
                                                  &key
                                                  documentation)
-  "Define an Anthropic-compatible SSE endpoint with forced stream mode."
-  (%expand-stream-endpoint 'open-anthropic-stream
+  "Define an Anthropic-compatible SSE callback endpoint."
+  (%expand-stream-endpoint 'call-with-anthropic-stream
                            '%anthropic-stream-body
                            name
                            lambda-list
@@ -253,6 +272,17 @@ successful response before returning its decoded value."
                                         stream-body-form-supplied-p)
   (%validate-endpoint-declaration name lambda-list method path stream-name)
   (let* ((client-var (first lambda-list))
+         (key-position (position '&key lambda-list))
+         (stream-lambda-list
+          (progn
+            (unless key-position
+              (error 'program-error))
+            (append (subseq lambda-list 0 key-position)
+                    '(event-function &key)
+                    (subseq lambda-list (1+ key-position))
+                    '((response-timeout +timeout-unspecified+)
+                      (idle-timeout +timeout-unspecified+)
+                      cancel-token))))
          (effective-stream-body-form
           (if stream-body-form-supplied-p
               stream-body-form
@@ -275,18 +305,25 @@ successful response before returning its decoded value."
                                 ,timeout-var
                                 :headers
                                 ,headers-var))
-         (defun ,stream-name ,lambda-list
+         (defun ,stream-name ,stream-lambda-list
            ,@(when stream-documentation
                (list stream-documentation))
-           (open-ollama-stream ,client-var
-                               ',method
-                               ',path
-                               :body
-                               ,stream-body-expansion
-                               :timeout
-                               ,timeout-var
-                               :headers
-                               ,headers-var))))))
+           (call-with-ollama-stream ,client-var
+                                    ',method
+                                    ',path
+                                    event-function
+                                    :body
+                                    ,stream-body-expansion
+                                    :timeout
+                                    ,timeout-var
+                                    :response-timeout
+                                    response-timeout
+                                    :idle-timeout
+                                    idle-timeout
+                                    :headers
+                                    ,headers-var
+                                    :cancel-token
+                                    cancel-token))))))
 
 (defmacro define-native-stream-pair (name stream-name
                                           lambda-list

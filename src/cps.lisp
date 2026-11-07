@@ -38,20 +38,48 @@ continuations themselves are deliberately not intercepted."
   (with-ollama-continuations (success failure)
                              (apply #'request-json client method path arguments)))
 
-(defun call-with-stream (opener client
-                                method
-                                path
-                                success
-                                failure
-                                &rest
-                                arguments)
-  "Open a stream in continuation-passing style.
+(defun call-with-ollama-stream (client method path event-function &rest options)
+  "Consume native Ollama NDJSON events synchronously.
 
-OPENER receives CLIENT, METHOD, PATH, and ARGUMENTS.  SUCCESS owns returned
-stream values; FAILURE receives an OLLAMA-ERROR."
-  (unless (functionp opener)
-    (error 'ollama-argument-error
-           :message
-           "CALL-WITH-STREAM requires a stream opener function."))
-  (with-ollama-continuations (success failure)
-                             (apply opener client method path arguments)))
+EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
+the active request and complete normally. The HTTP response is closed before
+this function returns."
+  (%call-with-event-stream client
+                           method
+                           path
+                           :ndjson
+                           event-function
+                           "application/x-ndjson"
+                           options))
+
+(defun call-with-openai-stream (client method path event-function &rest options)
+  "Consume OpenAI-compatible SSE events synchronously.
+
+EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
+the active request and complete normally. The HTTP response is closed before
+this function returns."
+  (%call-with-event-stream client
+                           method
+                           path
+                           :sse
+                           event-function
+                           "text/event-stream"
+                           options))
+
+(defun call-with-anthropic-stream (client method
+                                          path
+                                          event-function
+                                          &rest
+                                          options)
+  "Consume Anthropic-compatible SSE events synchronously.
+
+EVENT-FUNCTION receives each decoded JSON object. Return :STOP from it to cancel
+the active request and complete normally. The HTTP response is closed before
+this function returns."
+  (%call-with-event-stream client
+                           method
+                           path
+                           :sse
+                           event-function
+                           "text/event-stream"
+                           options))

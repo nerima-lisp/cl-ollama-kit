@@ -87,10 +87,13 @@
                              "Create a chat completion using a JSON object BODY.")
 
 (define-openai-stream-endpoint openai-chat-completions-stream
-                               (client body
+                               (client body event-function
                                        &key
                                        (timeout +timeout-unspecified+)
-                                       headers)
+                                       (response-timeout +timeout-unspecified+)
+                                       (idle-timeout +timeout-unspecified+)
+                                       headers
+                                       cancel-token)
                                :post
                                "/chat/completions"
                                :documentation
@@ -109,10 +112,13 @@
                              "Create a text completion using an OpenAI-compatible request BODY.")
 
 (define-openai-stream-endpoint openai-completions-stream
-                               (client body
+                               (client body event-function
                                        &key
                                        (timeout +timeout-unspecified+)
-                                       headers)
+                                       (response-timeout +timeout-unspecified+)
+                                       (idle-timeout +timeout-unspecified+)
+                                       headers
+                                       cancel-token)
                                :post
                                "/completions"
                                :documentation
@@ -143,10 +149,13 @@
                              "Create a response through Ollama's experimental `/v1/responses` API.")
 
 (define-openai-stream-endpoint openai-responses-stream
-                               (client body
+                               (client body event-function
                                        &key
                                        (timeout +timeout-unspecified+)
-                                       headers)
+                                       (response-timeout +timeout-unspecified+)
+                                       (idle-timeout +timeout-unspecified+)
+                                       headers
+                                       cancel-token)
                                :post
                                "/responses"
                                :documentation
