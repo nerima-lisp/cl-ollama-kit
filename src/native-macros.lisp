@@ -4,6 +4,7 @@
     ((and (consp spec) (consp (first spec))) (second (first spec)))
     ((consp spec) (first spec))
     (t nil)))
+(define-condition %stream-endpoint-lambda-list-error (program-error simple-condition) () (:report (lambda (condition stream) (apply (function format) stream (simple-condition-format-control condition) (simple-condition-format-arguments condition)))))
 
 (defun %endpoint-keyword-variable (lambda-list name)
   (let ((key-position (position '&key lambda-list)))
@@ -73,11 +74,26 @@
 (defun %validate-stream-endpoint-lambda-list (lambda-list)
   (unless
       (and (%valid-endpoint-lambda-list-p lambda-list)
-           (%valid-endpoint-lambda-variable-p (second lambda-list))
-           (%valid-endpoint-lambda-variable-p (third lambda-list))
-           (position '&key lambda-list)
-           (%endpoint-keyword-variable lambda-list "CANCEL-TOKEN")
-           (%endpoint-keyword-variable lambda-list "RESPONSE-TIMEOUT")
+           (%valid-endpoint-lambda-variable-p (second lambda-list)))
+    (error 'program-error))
+  (unless (%valid-endpoint-lambda-variable-p (third lambda-list))
+    (error '%stream-endpoint-lambda-list-error
+           :format-control
+           "Stream endpoint lambda list requires an event function before &key."
+           :format-arguments
+           nil))
+  (unless (position '&key lambda-list)
+    (error '%stream-endpoint-lambda-list-error
+           :format-control "Stream endpoint lambda list requires &key."
+           :format-arguments nil))
+  (unless (%endpoint-keyword-variable lambda-list "CANCEL-TOKEN")
+    (error '%stream-endpoint-lambda-list-error
+           :format-control
+           "Stream endpoint lambda list requires CANCEL-TOKEN."
+           :format-arguments
+           nil))
+  (unless
+      (and (%endpoint-keyword-variable lambda-list "RESPONSE-TIMEOUT")
            (%endpoint-keyword-variable lambda-list "IDLE-TIMEOUT"))
     (error 'program-error))
   lambda-list)

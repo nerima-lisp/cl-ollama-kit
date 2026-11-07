@@ -427,7 +427,40 @@ this function returns.")))
                                                  nil)))
                                 (assert nil))
                   (program-error ()
-                    t)))))
+                    t))))
+          (it-each
+           (("event function position"
+             ollama-kit::%stream-endpoint-lambda-list-error
+             (client body &key timeout headers cancel-token response-timeout idle-timeout)
+             "Stream endpoint lambda list requires an event function before &key.")
+            ("missing &key"
+             ollama-kit::%stream-endpoint-lambda-list-error
+             (client body event-function timeout headers cancel-token response-timeout idle-timeout)
+             "Stream endpoint lambda list requires &key.")
+            ("missing CANCEL-TOKEN"
+             ollama-kit::%stream-endpoint-lambda-list-error
+             (client body event-function &key timeout headers response-timeout idle-timeout)
+             "Stream endpoint lambda list requires CANCEL-TOKEN."))
+           "rejects ~A lambda lists for native stream endpoint macros"
+           (reason expected-condition-type lambda-list expected-message)
+           (dolist
+               (macro
+                '(ollama-kit::define-openai-stream-endpoint
+                  ollama-kit::define-anthropic-stream-endpoint))
+             (let ((condition nil))
+               (handler-case
+                   (macroexpand-1
+                    (list macro
+                          'generated-invalid-stream-endpoint
+                          lambda-list
+                          :post
+                          "/stream"))
+                 (ollama-kit::%stream-endpoint-lambda-list-error (caught)
+                   (setf condition caught)))
+               (assert (typep condition expected-condition-type))
+               (assert (typep condition 'program-error))
+               (assert
+                (string= expected-message (princ-to-string condition)))))))
 
 (describe "coverage boundary contracts"
           (it "executes inline input, JSON, and native option helpers"
