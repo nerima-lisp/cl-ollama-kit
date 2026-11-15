@@ -4,13 +4,13 @@
   :description "A transport-independent Common Lisp client for Ollama's native, OpenAI-compatible, and Anthropic-compatible APIs."
   :author "nerima-lisp contributors"
   :maintainer "nerima-lisp contributors"
-  :version "3.0.0"
+  :version "3.0.1"
   :license "MIT"
-  :depends-on ((:version "cl-http-kit/client" "0.5.0")
+  :depends-on ((:version "cl-http-kit/client" "0.5.1")
                (:version "cl-http-message-kit" "2.0.1")
-               (:version "cl-sse-kit" "1.1.0")
+               (:version "cl-sse-kit" "1.2.0")
                (:version "cl-codec-kit" "0.6.0")
-               (:version "cl-concurrent-kit" "0.6.1")
+               (:version "cl-concurrent-kit" "0.7.0")
                (:version "cl-json-kit" "1.2.0"))
   :pathname "src"
   :serial t
@@ -52,15 +52,15 @@
 
 (asdf:defsystem "cl-ollama-kit/test"
   :description "Tests for cl-ollama-kit."
-  :depends-on ((:version "cl-ollama-kit" "3.0.0") (:version "cl-weave" "1.5.0")
-               (:version "cl-sse-kit" "1.1.0")
+  :depends-on ((:version "cl-ollama-kit" "3.0.1") (:version "cl-weave" "1.5.0")
+               (:version "cl-sse-kit" "1.2.0")
                (:version "cl-codec-kit" "0.6.0")
                (:version "cl-boundary-kit" "2.3.0")
-               (:version "cl-http-kit/client" "0.5.0")
-               (:version "cl-http-kit/network" "0.5.0")
+               (:version "cl-http-kit/client" "0.5.1")
+               (:version "cl-http-kit/network" "0.5.1")
                (:version "cl-http-message-kit" "2.0.1")
                (:version "cl-json-kit" "1.2.0")
-               (:version "cl-concurrent-kit" "0.6.1"))
+               (:version "cl-concurrent-kit" "0.7.0"))
   :pathname "t"
   :serial t
   :components ((:file "package") (:file "test-support")

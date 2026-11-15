@@ -49,9 +49,8 @@
     };
 
     cl-concurrent-kit = {
-      url = "github:nerima-lisp/cl-concurrent-kit/v0.6.1";
+      url = "github:nerima-lisp/cl-concurrent-kit/v0.8.0";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.cl-boundary-kit.follows = "cl-boundary-kit";
       inputs.cl-date-kit.follows = "cl-date-kit";
       inputs.cl-host-kit.follows = "cl-host-kit";
       inputs.cl-weave.follows = "cl-weave";
@@ -110,6 +109,7 @@
       inputs.cl-boundary-kit.follows = "cl-boundary-kit";
       inputs.cl-codec-kit.follows = "cl-codec-kit";
       inputs.cl-concurrent-kit.follows = "cl-concurrent-kit";
+      inputs.cl-observability-kit.inputs.cl-concurrent-kit.follows = "cl-concurrent-kit";
       inputs.cl-crypto-kit.follows = "cl-crypto-kit";
       inputs.cl-date-kit.follows = "cl-date-kit";
       inputs.cl-deflate-kit.follows = "cl-deflate-kit";
@@ -128,13 +128,12 @@
     };
 
     cl-resilience-kit = {
-      url = "github:nerima-lisp/cl-resilience-kit/v1.0.0";
+      url = "github:nerima-lisp/cl-resilience-kit/v2.0.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.cl-nix-forge.follows = "cl-nix-forge";
       inputs.cl-weave.follows = "cl-weave";
       inputs.paredit-cli.follows = "paredit-cli";
       inputs.treefmt-nix.follows = "treefmt-nix";
-      inputs.cl-boundary-kit.follows = "cl-boundary-kit";
       inputs.cl-concurrent-kit.follows = "cl-concurrent-kit";
       inputs.cl-date-kit.follows = "cl-date-kit";
     };
@@ -148,7 +147,7 @@
 
     # cl-sse-kit's flake publishes source only; compile the runtime system below.
     cl-sse-kit = {
-      url = "github:nerima-lisp/cl-sse-kit/v1.1.0";
+      url = "github:nerima-lisp/cl-sse-kit/v1.2.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.cl-codec-kit.follows = "cl-codec-kit";
       inputs.cl-boundary-kit.follows = "cl-boundary-kit";
@@ -253,7 +252,7 @@
           };
           clHttpKit = forge.lispDerivation {
             pname = "cl-http-kit";
-            version = "0.5.0";
+            version = "0.5.1";
             lispSystem = "cl-http-kit/client";
             src = cl-http-kit.outPath;
             lispDependencies = [
@@ -267,7 +266,7 @@
           clSseKit = wrapForeign (
             forge.lispDerivation {
               pname = "cl-sse-kit";
-              version = "1.1.0";
+              version = "1.2.0";
               lispSystem = "cl-sse-kit";
               src = cl-sse-kit.packages.${ctx.system}.default;
               lispAsdPath = [ "share/common-lisp/source/cl-sse-kit" ];
