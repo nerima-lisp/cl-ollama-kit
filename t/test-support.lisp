@@ -144,19 +144,13 @@
 (defun %loopback-set-state (server slot value)
   (sb-thread:with-mutex ((%loopback-http-server-state-lock server))
                         (ecase slot
-                          (:stream
-                           (setf (%loopback-http-server-stream server) value))
                           (:server-error
                            (setf (%loopback-http-server-server-error server) value))
                           (:thread-joined-p
                            (setf (%loopback-http-server-thread-joined-p server) value))
                           (:listener-closed-p
                            (setf (%loopback-http-server-listener-closed-p
-                                  server) value))
-                          (:stream-closed-p
-                           (setf (%loopback-http-server-stream-closed-p server) value))
-                          (:stop-requested-p
-                           (setf (%loopback-http-server-stop-requested-p server) value)))))
+                                  server) value)))))
 
 (defun %loopback-record-eof (server)
   (let ((new-eof-p nil))
@@ -371,19 +365,34 @@
        :timeout
        5)
     (declare (ignore peer-address peer-port))
-    (%loopback-set-state server :stream stream)
-    (loop (multiple-value-bind (request bytes eof-p)
-              (%read-loopback-http-request stream)
-            (when eof-p
-              (%loopback-record-eof server)
-              (return))
-            (%loopback-record-request server request bytes)
-            (%loopback-write-configured-response server stream)
-            (unless
-                (and (eq :response (%loopback-http-server-behavior server))
-                     (%loopback-http-server-keep-alive-p server))
-              (%loopback-wait-for-peer-eof server stream)
-              (return))))))
+    (unwind-protect
+        ;; Publishing the stream and reading STOP-REQUESTED-P under one lock
+        ;; hold means the cleanup thread either sees the stream and shuts it
+        ;; down, or this worker sees the stop request and never reads.
+        (when (sb-thread:with-mutex ((%loopback-http-server-state-lock server))
+                                    (setf (%loopback-http-server-stream server)
+                                          stream)
+                                    (not
+                                     (%loopback-http-server-stop-requested-p
+                                      server)))
+          (loop (multiple-value-bind (request bytes eof-p)
+                    (%read-loopback-http-request stream)
+                  (when eof-p
+                    (%loopback-record-eof server)
+                    (return))
+                  (%loopback-record-request server request bytes)
+                  (%loopback-write-configured-response server stream)
+                  (unless
+                      (and (eq :response (%loopback-http-server-behavior server))
+                           (%loopback-http-server-keep-alive-p server))
+                    (%loopback-wait-for-peer-eof server stream)
+                    (return)))))
+      ;; Closing under the state lock keeps the cleanup thread's shutdown
+      ;; from reaching a file descriptor the kernel has already reused.
+      (sb-thread:with-mutex ((%loopback-http-server-state-lock server))
+                            (http-kit/network:close-http-tcp-stream stream)
+                            (setf (%loopback-http-server-stream-closed-p server)
+                                  t)))))
 
 (defun make-loopback-http-server (&key (status 200)
                                        (headers nil)
@@ -457,25 +466,31 @@
     server))
 
 (defun close-loopback-http-server (server)
-  (%loopback-set-state server :stop-requested-p t)
-  (let ((cleanup-error nil)
-        (listener (%loopback-http-server-listener server))
-        (stream
-         (and (not (%loopback-http-server-stream-closed-p server))
-              (%loopback-http-server-stream server))))
-    (when stream
-      (handler-case (progn
-                      (http-kit/network:close-http-tcp-stream stream)
-                      (%loopback-set-state server :stream-closed-p t))
+  ;; Linux does not wake a thread blocked in accept or read when another
+  ;; thread closes its socket, so wake the worker first, join it, and only
+  ;; then close.  The worker closes its own stream.
+  (let* ((cleanup-error nil)
+         (listener (%loopback-http-server-listener server))
+         (stream
+          (sb-thread:with-mutex ((%loopback-http-server-state-lock server))
+                                (setf (%loopback-http-server-stop-requested-p
+                                       server) t)
+                                (let ((stream
+                                       (%loopback-http-server-stream server)))
+                                  (when
+                                      (and stream
+                                           (not
+                                            (%loopback-http-server-stream-closed-p
+                                             server)))
+                                    ;; A failed shutdown leaves the worker
+                                    ;; blocked, which the join below reports.
+                                    (http-kit/network:shutdown-http-tcp-stream
+                                     stream))
+                                  stream))))
+    (unless stream
+      (handler-case (http-kit/network:wake-http-tcp-listener listener)
         (error (condition)
           (setf cleanup-error condition))))
-    (unless (loopback-http-server-listener-closed-p server)
-      (handler-case (progn
-                      (http-kit/network:close-http-tcp-listener listener)
-                      (%loopback-set-state server :listener-closed-p t))
-        (error (condition)
-          (unless cleanup-error
-            (setf cleanup-error condition)))))
     (let* ((thread (%loopback-http-server-thread server))
            (joined-p
             (or (null thread)
@@ -487,6 +502,13 @@
                                             :default
                                             :timed-out))))))
       (%loopback-set-state server :thread-joined-p joined-p)
+      (unless (loopback-http-server-listener-closed-p server)
+        (handler-case (progn
+                        (http-kit/network:close-http-tcp-listener listener)
+                        (%loopback-set-state server :listener-closed-p t))
+          (error (condition)
+            (unless cleanup-error
+              (setf cleanup-error condition)))))
       (when cleanup-error
         (error cleanup-error))
       (values server
