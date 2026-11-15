@@ -335,7 +335,9 @@
                                'http-kit/client:http-client-request-cancelled))))
                    (when (eq behavior :stalled-body)
                      (assert (= 1 (length events))))
-                   (assert (loopback-http-server-await-eof server 1.5)))
+                   ;; Every kind here aborts the exchange, so the server may
+                   ;; see a reset instead of EOF.
+                   (assert (loopback-http-server-await-release server 1.5)))
                (when cancel-thread
                  (unless cancel-thread-joined-p
                    (%join-http-test-thread cancel-thread 1)))
@@ -439,7 +441,8 @@
                      (assert
                       (typep (ollama-transport-error-cause request-condition)
                              'http-kit/client:http-client-request-cancelled))
-                     (assert (loopback-http-server-await-eof server 5)))
+                     ;; The caller cancelled, which aborts the connection.
+                     (assert (loopback-http-server-await-release server 5)))
                  (unwind-protect
                      (progn
                        (cl-concurrent-kit:signal-semaphore release-callback)
@@ -494,7 +497,9 @@
              (unwind-protect
                  (progn
                    (assert (eq callback-condition condition))
-                   (assert (loopback-http-server-await-eof server 1.5)))
+                   ;; The client abandons the response mid-body, so the server
+                   ;; may see a reset instead of EOF.
+                   (assert (loopback-http-server-await-release server 1.5)))
                (close-client client)
                (%assert-loopback-server-cleaned server))))
           (it-each (("owned client" :owned) ("supplied HTTP client" :supplied))
@@ -603,6 +608,8 @@
                                                                         :escaped)))
                                      :returned))
                       (assert (eq :escaped result))
-                      (assert (loopback-http-server-await-eof server 1.5)))
+                      ;; The non-local exit cancels the request, which aborts the
+                      ;; connection.
+                      (assert (loopback-http-server-await-release server 1.5)))
                   (close-client client)
                   (%assert-loopback-server-cleaned server)))))

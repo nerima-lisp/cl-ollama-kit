@@ -57,7 +57,9 @@
                           (loopback-http-server-request server)))
                         (assert (= 1 (length events)))
                         (assert (equal "hello" (gethash "text" (first events))))
-                        (assert (loopback-http-server-await-eof server 1.5)))
+                        ;; Stopping at [DONE] cancels the request, which aborts the
+                        ;; connection while the server may still be writing.
+                        (assert (loopback-http-server-await-release server 1.5)))
                     (close-client client)
                     (close-loopback-http-server server))
                   (assert (loopback-http-server-thread-joined-p server))

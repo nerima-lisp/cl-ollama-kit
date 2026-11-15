@@ -128,6 +128,39 @@
                                     timeout-seconds)
        (loopback-http-server-eof-p server))))
 
+;; SBCL defines no ECONNRESET constant.
+(defconstant +loopback-econnreset+
+  #+linux 104
+  #+darwin 54)
+
+(defun %loopback-peer-reset-p (condition)
+  (or (typep condition 'sb-int:broken-pipe)
+      ;; SBCL reports other socket I/O failures as SIMPLE-STREAM-ERROR whose
+      ;; last format argument is the strerror text.
+      (and (typep condition 'sb-int:simple-stream-error)
+           (equal (sb-int:strerror +loopback-econnreset+)
+                  (car (last (simple-condition-format-arguments condition)))))))
+
+(defun loopback-http-server-await-release (server timeout-seconds)
+  "Return true when the server worker finished within TIMEOUT-SECONDS after
+the client released the connection, either gracefully (EOF) or abortively
+(connection reset or broken pipe).  A cancelled client aborts its connection,
+so the server sees whichever the timing of its own reads and writes allows."
+  (unless (and (realp timeout-seconds) (not (minusp timeout-seconds)))
+    (error
+     "Loopback release timeout must be a non-negative number of seconds, got ~S."
+     timeout-seconds))
+  (and (not
+        (eq :timed-out
+            (sb-thread:join-thread (%loopback-http-server-thread server)
+                                   :timeout
+                                   timeout-seconds
+                                   :default
+                                   :timed-out)))
+       (or (loopback-http-server-eof-p server)
+           (let ((condition (loopback-http-server-server-error server)))
+             (and condition (%loopback-peer-reset-p condition))))))
+
 (defun loopback-http-server-await-request (server timeout-seconds)
   (unless (and (realp timeout-seconds) (not (minusp timeout-seconds)))
     (error
