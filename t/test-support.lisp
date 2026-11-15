@@ -150,16 +150,17 @@ so the server sees whichever the timing of its own reads and writes allows."
     (error
      "Loopback release timeout must be a non-negative number of seconds, got ~S."
      timeout-seconds))
-  (and (not
-        (eq :timed-out
-            (sb-thread:join-thread (%loopback-http-server-thread server)
-                                   :timeout
-                                   timeout-seconds
-                                   :default
-                                   :timed-out)))
-       (or (loopback-http-server-eof-p server)
-           (let ((condition (loopback-http-server-server-error server)))
-             (and condition (%loopback-peer-reset-p condition))))))
+  (and
+   (not
+    (eq :timed-out
+        (sb-thread:join-thread (%loopback-http-server-thread server)
+                               :timeout
+                               timeout-seconds
+                               :default
+                               :timed-out)))
+   (or (loopback-http-server-eof-p server)
+       (let ((condition (loopback-http-server-server-error server)))
+         (and condition (%loopback-peer-reset-p condition))))))
 
 (defun loopback-http-server-await-request (server timeout-seconds)
   (unless (and (realp timeout-seconds) (not (minusp timeout-seconds)))
