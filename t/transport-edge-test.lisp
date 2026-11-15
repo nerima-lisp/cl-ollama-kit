@@ -418,7 +418,12 @@
 (it
  "stops reading an oversized non-success response and keeps its diagnostic prefix"
  (let* ((body
-         (make-array (* 1024 1024)
+         ;; The body must exceed what loopback socket buffers can hold, so the
+         ;; server stays blocked in write and cannot see the client's FIN as a
+         ;; clean EOF.  It must stay below the client's default
+         ;; max-input-length (16777216), or the request fails at the header
+         ;; stage instead.
+         (make-array (* 15 1024 1024)
                      :element-type
                      (quote (unsigned-byte 8))
                      :initial-element
