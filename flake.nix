@@ -102,7 +102,7 @@
     };
 
     cl-http-kit = {
-      url = "github:nerima-lisp/cl-http-kit/c2b8faaa79227f740c2cc1923b233503c61592ad";
+      url = "github:nerima-lisp/cl-http-kit/v0.5.1";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.cl-weave.follows = "cl-weave";
       inputs.treefmt-nix.follows = "treefmt-nix";
