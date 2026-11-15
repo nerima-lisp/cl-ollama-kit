@@ -455,7 +455,11 @@
               (http-message-kit:http-response-body
                (ollama-http-error-response condition)))))
          (close-client client)
-         (sb-thread:join-thread server-thread)
+         ;; On timeout, CLOSE-LOOPBACK-HTTP-SERVER below shuts the server
+         ;; socket down, which releases the blocked write.
+         (unless (%join-http-test-thread server-thread 5)
+           (error
+            "The loopback server thread did not return within 5 seconds; it stayed blocked writing the response after the client stopped reading."))
          (let ((server-error (loopback-http-server-server-error server))
                (server-eof-p (loopback-http-server-eof-p server)))
            (assert (and server-error (not server-eof-p))
